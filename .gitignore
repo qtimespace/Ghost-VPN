@@ -8,6 +8,9 @@
 *.ovpn
 *.conf.bak
 
+# Client configs (contain private keys)
+client-configs/
+
 # Backup files
 backup*.tar.gz
 
