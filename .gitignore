@@ -11,6 +11,10 @@
 # Client configs (contain private keys)
 client-configs/
 
+# Documentation (internal)
+docs/
+CLAUDE.md
+
 # Backup files
 backup*.tar.gz
 
