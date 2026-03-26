@@ -54,7 +54,7 @@ fi
 echo
 echo -e '\e[1;32mInstalling proxy for AntiZapret VPN server\e[0m'
 echo 'Proxied ports: 80, 443, 504, 508, 540, 580, 50080, 50443, 51080, 51443'
-echo 'More details: https://github.com/GubernievS/AntiZapret-VPN'
+echo 'More details: https://github.com/qtimespace/Ghost-VPN'
 echo
 
 MTU=$(< /sys/class/net/$DEFAULT_INTERFACE/mtu)
