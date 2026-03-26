@@ -114,8 +114,22 @@ function download {
 			exit 4
 		fi
 	else
-		echo 'Trying connect via proxy...'
-		curl -fL --connect-timeout 30 "$PROXY$link" -o "$tmp_path" || exit 2
+		echo 'Warning: Direct download failed, trying connect via third-party proxy...'
+		if ! curl -fL --connect-timeout 30 "$PROXY$link" -o "$tmp_path"; then
+			echo "Failed to download $path via proxy!"
+			rm -f "$tmp_path"
+			exit 2
+		fi
+		# Verify proxy download size matches direct source
+		local proxy_size="$(stat -c '%s' "$tmp_path")"
+		local header
+		header="$(curl -fsSLI --connect-timeout 30 "$link" 2>/dev/null)" || true
+		local remote_size="$(echo "$header" | grep -i content-length | cut -d ':' -f 2 | sed 's/[[:space:]]//g')"
+		if [[ -n "$remote_size" && "$proxy_size" != "$remote_size" ]]; then
+			echo "Warning: Proxy download size mismatch for $path (got $proxy_size, expected $remote_size)"
+			rm -f "$tmp_path"
+			exit 4
+		fi
 	fi
 	mv -f "$tmp_path" "$path"
 	if [[ "$path" == *.sh ]]; then

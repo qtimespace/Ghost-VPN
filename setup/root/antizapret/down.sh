@@ -1,4 +1,5 @@
 #!/bin/bash
+# Suppress stderr only for iptables cleanup commands (rules may not exist)
 exec 2>/dev/null
 
 cd /root/antizapret
@@ -103,12 +104,9 @@ iptables -w -t nat -D PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 80 -j REDI
 iptables -w -t nat -D PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 443 -j REDIRECT --to-ports 50443
 iptables -w -t nat -D PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 504 -j REDIRECT --to-ports 50443
 iptables -w -t nat -D PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 508 -j REDIRECT --to-ports 50080
-# WireGuard/AmneziaWG port redirection for backup connections
+# WireGuard port redirection for backup connections
 iptables -w -t nat -D PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 540 -j REDIRECT --to-ports 51443
 iptables -w -t nat -D PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 580 -j REDIRECT --to-ports 51080
-# AmneziaWG redirection ports to WireGuard
-iptables -w -t nat -D PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 52080 -j REDIRECT --to-ports 51080
-iptables -w -t nat -D PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 52443 -j REDIRECT --to-ports 51443
 # AntiZapret DNS redirection to Knot Resolver
 iptables -w -t nat -D PREROUTING -s $IP.29.0.0/16 -p udp --dport 53 -j DNAT --to-destination 127.0.0.1
 iptables -w -t nat -D PREROUTING -s $IP.29.0.0/16 -p tcp --dport 53 -j DNAT --to-destination 127.0.0.1

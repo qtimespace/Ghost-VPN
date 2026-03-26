@@ -62,9 +62,10 @@ setServerIP(){
 render() {
 	local IFS=
 	while read -r line; do
-		while [[ "$line" =~ (\$\{[a-zA-Z_][a-zA-Z_0-9]*\}) ]]; do
+		while [[ "$line" =~ (\$\{([a-zA-Z_][a-zA-Z_0-9]*)\}) ]]; do
 			local LHS="${BASH_REMATCH[1]}"
-			local RHS="$(eval echo "\"$LHS\"")"
+			local VAR_NAME="${BASH_REMATCH[2]}"
+			local RHS="${!VAR_NAME}"
 			line="${line//$LHS/$RHS}"
 		done
 		echo "$line"
@@ -179,7 +180,7 @@ listOpenVPN(){
 initWireGuard(){
 	if [[ ! -f /etc/wireguard/key ]]; then
 		echo
-		echo 'Generating WireGuard/AmneziaWG server keys'
+		echo 'Generating WireGuard server keys'
 		PRIVATE_KEY="$(wg genkey)"
 		PUBLIC_KEY="$(echo "${PRIVATE_KEY}" | wg pubkey)"
 		echo "PRIVATE_KEY=${PRIVATE_KEY}
@@ -217,7 +218,7 @@ addWireGuard(){
 				break
 			fi
 			if [[ "$i" == 255 ]]; then
-				echo 'The WireGuard/AmneziaWG subnet can support only 253 clients!'
+				echo 'The WireGuard subnet can support only 253 clients!'
 				exit 4
 			fi
 		done
@@ -232,7 +233,6 @@ AllowedIPs = ${CLIENT_IP}/32
 	fi
 
 	render "/etc/wireguard/templates/antizapret-client-wg.conf" > "/root/antizapret/client/wireguard/antizapret/antizapret-$FILE_NAME-wg.conf"
-	render "/etc/wireguard/templates/antizapret-client-am.conf" > "/root/antizapret/client/amneziawg/antizapret/antizapret-$FILE_NAME-am.conf"
 
 	# VPN
 
@@ -254,7 +254,7 @@ AllowedIPs = ${CLIENT_IP}/32
 				break
 			fi
 			if [[ "$i" == 255 ]]; then
-				echo 'The WireGuard/AmneziaWG subnet can support only 253 clients!'
+				echo 'The WireGuard subnet can support only 253 clients!'
 				exit 5
 			fi
 		done
@@ -269,9 +269,8 @@ AllowedIPs = ${CLIENT_IP}/32
 	fi
 
 	render "/etc/wireguard/templates/vpn-client-wg.conf" > "/root/antizapret/client/wireguard/vpn/vpn-$FILE_NAME-wg.conf"
-	render "/etc/wireguard/templates/vpn-client-am.conf" > "/root/antizapret/client/amneziawg/vpn/vpn-$FILE_NAME-am.conf"
 
-	echo "WireGuard/AmneziaWG profile files (re)created for client '$CLIENT_NAME' at /root/antizapret/client/wireguard and /root/antizapret/client/amneziawg"
+	echo "WireGuard profile files (re)created for client '$CLIENT_NAME' at /root/antizapret/client/wireguard"
 	echo
 	echo 'Attention! If import fails, shorten profile filename to 32 chars (Windows) or 15 (Linux/Android/iOS), remove parentheses'
 }
@@ -291,19 +290,19 @@ deleteWireGuard(){
 	sed -i '/^$/N;/^\n$/D' /etc/wireguard/antizapret.conf
 	sed -i '/^$/N;/^\n$/D' /etc/wireguard/vpn.conf
 
-	rm -f /root/antizapret/client/{wireguard,amneziawg}/antizapret/antizapret-"$FILE_NAME"-*.conf
-	rm -f /root/antizapret/client/{wireguard,amneziawg}/vpn/vpn-"$FILE_NAME"-*.conf
+	rm -f /root/antizapret/client/wireguard/antizapret/antizapret-"$FILE_NAME"-*.conf
+	rm -f /root/antizapret/client/wireguard/vpn/vpn-"$FILE_NAME"-*.conf
 
 	wg syncconf antizapret <(wg-quick strip antizapret 2>/dev/null) &>/dev/null || true
 	wg syncconf vpn <(wg-quick strip vpn 2>/dev/null) &>/dev/null || true
 
-	echo "WireGuard/AmneziaWG client '$CLIENT_NAME' successfully deleted"
+	echo "WireGuard client '$CLIENT_NAME' successfully deleted"
 }
 
 listWireGuard(){
 	[[ -n "$CLIENT_NAME" ]] && return
 	echo
-	echo 'WireGuard/AmneziaWG client names:'
+	echo 'WireGuard client names:'
 	grep -hE "^# Client" /etc/wireguard/antizapret.conf /etc/wireguard/vpn.conf | cut -d '=' -f 2 | sed 's/ //g' | sort -u
 }
 
@@ -332,19 +331,19 @@ recreate(){
 		addOpenVPN >/dev/null
 	fi
 
-	# WireGuard/AmneziaWG
+	# WireGuard
 	if [[ -f /etc/wireguard/key && -f /etc/wireguard/antizapret.conf && -f /etc/wireguard/vpn.conf ]]; then
 		grep -hE "^# Client" /etc/wireguard/antizapret.conf /etc/wireguard/vpn.conf | cut -d '=' -f 2 | sed 's/ //g' | sort -u | while read -r CLIENT_NAME; do
 			if [[ "$CLIENT_NAME" =~ ^[a-zA-Z0-9_-]{1,32}$ ]]; then
 				addWireGuard >/dev/null
-				echo "WireGuard/AmneziaWG profile files recreated for client '$CLIENT_NAME'"
+				echo "WireGuard profile files recreated for client '$CLIENT_NAME'"
 			else
-				echo "WireGuard/AmneziaWG client name '$CLIENT_NAME' is invalid! No profile files recreated"
+				echo "WireGuard client name '$CLIENT_NAME' is invalid! No profile files recreated"
 			fi
 		done
 	else
 		CLIENT_NAME=antizapret-client
-		echo "Creating WireGuard/AmneziaWG server keys and first WireGuard/AmneziaWG client: '$CLIENT_NAME'"
+		echo "Creating WireGuard server keys and first WireGuard client: '$CLIENT_NAME'"
 		initWireGuard
 		addWireGuard >/dev/null
 	fi
@@ -390,9 +389,9 @@ if ! [[ "$OPTION" =~ ^[1-8]$ ]]; then
 	echo '    1) OpenVPN - Add client/Renew client certificate'
 	echo '    2) OpenVPN - Delete client'
 	echo '    3) OpenVPN - List clients'
-	echo '    4) WireGuard/AmneziaWG - Add client'
-	echo '    5) WireGuard/AmneziaWG - Delete client'
-	echo '    6) WireGuard/AmneziaWG - List clients'
+	echo '    4) WireGuard - Add client'
+	echo '    5) WireGuard - Delete client'
+	echo '    6) WireGuard - List clients'
 	echo '    7) (Re)create client profile files'
 	echo '    8) Backup configuration and clients'
 	until [[ "$OPTION" =~ ^[1-8]$ ]]; do
@@ -418,19 +417,19 @@ case "$OPTION" in
 		listOpenVPN
 		;;
 	4)
-		echo "WireGuard/AmneziaWG - Add client $CLIENT_NAME"
+		echo "WireGuard - Add client $CLIENT_NAME"
 		askClientName
 		initWireGuard
 		addWireGuard
 		;;
 	5)
-		echo "WireGuard/AmneziaWG - Delete client $CLIENT_NAME"
+		echo "WireGuard - Delete client $CLIENT_NAME"
 		listWireGuard
 		askClientName
 		deleteWireGuard
 		;;
 	6)
-		echo 'WireGuard/AmneziaWG - List clients'
+		echo 'WireGuard - List clients'
 		listWireGuard
 		;;
 	7)

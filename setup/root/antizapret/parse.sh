@@ -69,11 +69,11 @@ if [[ -z "$1" || "$1" == 'ip' || "$1" == 'ips' || "$1" == 'noclear' || "$1" == '
 		cp -f result/DEFAULT /etc/openvpn/server/ccd/DEFAULT
 	fi
 
-	# Создаем файл ips для WireGuard/AmneziaWG
+	# Создаем файл ips для WireGuard
 	echo -n ", $FAKE_IP.0.0/15" > result/ips
 	awk '{printf ", %s", $0}' result/route-ips.txt >> result/ips
 
-	# Обновляем файл ips в WireGuard/AmneziaWG только если файл изменился
+	# Обновляем файл ips в WireGuard только если файл изменился
 	if [[ -f result/ips ]] && ! diff -q result/ips /etc/wireguard/ips; then
 		cp -f result/ips /etc/wireguard/ips
 	fi

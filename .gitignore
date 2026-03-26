@@ -1,0 +1,31 @@
+# Environment and secrets
+.env
+.env.*
+*.pem
+*.key
+*.crt
+*.p12
+*.ovpn
+*.conf.bak
+
+# Backup files
+backup*.tar.gz
+
+# Temp and build artifacts
+*.tmp
+*.log
+*.swp
+*.swo
+*~
+__pycache__/
+*.pyc
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini

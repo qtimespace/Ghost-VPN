@@ -3,7 +3,7 @@
 | У автора есть собственный VPN-сервер. Вы можете приобрести готовое подключение к AntiZapret VPN или получить помощь в настройке своего сервера или роутера. Все подробности и стоимость [тут](https://t.me/antizapret_vpn/4) |
 |------------------|
 
-Скрипт для установки на [своём сервере](#где-купить-сервер) AntiZapret VPN и обычного VPN, работает по протоколам OpenVPN (есть патч для обхода блокировки), WireGuard и AmneziaWG
+Скрипт для установки на [своём сервере](#где-купить-сервер) AntiZapret VPN и обычного VPN, работает по протоколам OpenVPN (есть патч для обхода блокировки) и WireGuard
 
 AntiZapret VPN реализует технологию [раздельного туннелирования](https://encyclopedia.kaspersky.ru/glossary/split-tunneling)
 
@@ -32,7 +32,7 @@ chrome://flags/#local-network-access-check
 **Рекомендации!**\
 Всегда устанавливайте на сервере патч OpenVPN UDP (устанавливается по умолчанию)\
 На всех устройствах используйте OpenVPN профили с подключением только по UDP (*-udp.ovpn)\
-Не используйте WireGuard. Используйте AmneziaWG только на слабых устройствах не тянущих OpenVPN, например на роутерах с поддержкой этого протокола (Keenetic, OpenWrt)\
+WireGuard рекомендуется на слабых устройствах не тянущих OpenVPN, например на роутерах (Keenetic, OpenWrt)\
 На роутерах и устройствах отключите IPv6-адресацию\
 Если ваш зарубежный сервер с АнтиЗапретом оказался заблокирован, то к нему можно настроить подключение через [прокси-сервер](#настроить-прокси-сервер) в России
 
@@ -48,21 +48,9 @@ VPN-клиенты: [OpenVPN Connect](https://openvpn.net/client), [OpenVPN Comm
 Поддерживается подключение по UDP, используются порты 51080 и 51443, а также резервные порты 540 и 580 для обхода блокировок портов\
 Для использования резервных портов 540 (вместо 51443) и 580 (вместо 51080) укажите нужный порт вручную в параметре Endpoint конфигурационного файла\
 WireGuard не позволяет нескольким клиентам использовать один и тот же файл подключения (\*-wg.conf) для подключения к серверу, поэтому каждому клиенту необходимо создать свой личный файл подключения\
-Файлы подключения клиентов для WireGuard и AmneziaWG создаются сразу, по умолчанию создается один клиент 'antizapret-client'\
-Если ваш провайдер блокирует протокол WireGuard - попробуйте использовать AmneziaWG\
+По умолчанию создается один клиент 'antizapret-client'\
 При ошибке загрузки файла подключения необходимо сократить длину файла до 32 (Windows) или 15 (Linux/Android/iOS) символов и удалить скобки\
 VPN-клиенты: [WireGuard](https://www.wireguard.com/install)
-
-**AmneziaWG 1.5** (файлы \*-am.conf)\
-Поддерживается подключение по UDP, используются порты 52080 и 52443\
-AmneziaWG работает в [режиме обфускации Wireguard](https://habr.com/ru/companies/amnezia/articles/807539)\
-AmneziaWG не позволяет нескольким клиентам использовать один и тот же файл подключения (\*-am.conf) для подключения к серверу, поэтому каждому клиенту необходимо создать свой личный файл подключения\
-Файлы подключения клиентов для WireGuard и AmneziaWG создаются сразу, по умолчанию создается один клиент 'antizapret-client'\
-Если ваш провайдер (встречается на мобильных) блокирует протокол AmneziaWG - попробуйте в настройке подключения поменять Jc на 3, 4, 5 или используйте OpenVPN\
-Если ваш клиент не поддерживает AmneziaWG 1.5 — удалите из файла подключения (\*-am.conf) строку I1 = <b...\
-Не используйте VPN-клиент AmneziaVPN - он подменяет DNS АнтиЗапрета на свои, из-за чего AntiZapret VPN не работает, используйте только VPN-клиент AmneziaWG\
-При ошибке загрузки файла подключения необходимо сократить длину имени файла до 32 (Windows) или 15 (Linux/Android/iOS) символов и удалить скобки\
-VPN-клиенты: [AmneziaWG (Windows)](https://github.com/amnezia-vpn/amneziawg-windows-client/releases), [AmneziaWG (Android)](https://play.google.com/store/apps/details?id=org.amnezia.awg), [AmneziaWG (Apple)](https://apps.apple.com/ru/app/amneziawg/id6478942365)
 
 Скрипт удаляет некоторые пакеты, в том числе UFW и Firewalld, при необходимости их необходимо установить и настроить вручную\
 Скрипт отключает входящие подключения по IPv6 на сервере, а DNS АнтиЗапрета не возвращает IPv6-адреса (AAAA-записи) доменов\
@@ -86,13 +74,13 @@ bash <(wget -qO- --no-hsts --inet4-only https://raw.githubusercontent.com/Gubern
 	- Включить блокировку рекламы, трекеров и фишинга в AntiZapret VPN на основе правил AdGuard и OISD
 	- Использовать альтернативные диапазоны IP-адресов: 172... вместо 10...
 	- Использовать резервные порты 80, 443, 504, 508 для OpenVPN
-	- Использовать резервные порты 540, 580 для WireGuard/AmneziaWG
+	- Использовать резервные порты 540, 580 для WireGuard
 	- Включить подробные логи в OpenVPN
 	- Разрешить нескольким клиентам подключаться к OpenVPN используя один и тот же файл подключения (\*.ovpn)
 	- Включить защиту от перебора паролей SSH и защиту от сканирования и сетевых атак
 	- Ограничить маршрутизацию через AntiZapret VPN только к IP-адресам из config/forward-ips.txt и result/route-ips.txt
 	- Включить изоляцию VPN-клиентов и сервера
-	- Указать доменное имя для подключения к OpenVPN и WireGuard/AmneziaWG
+	- Указать доменное имя для подключения к OpenVPN и WireGuard
 	- Пустить все домены через AntiZapret VPN кроме российских доменов и доменов из config/exclude-hosts.txt
 	- Добавить IP-адреса необходимые для работы: Discord, Telegram, WhatsApp, Roblox и Cloudflare
 4. Дождаться перезагрузки сервера и скопировать файлы подключений (*.ovpn и *.conf) с сервера из подпапок /root/antizapret/client (например через MobaXterm, FileZilla или WinSCP)\
@@ -164,7 +152,7 @@ nano /root/antizapret/config/include-ips.txt
 /root/antizapret/doall.sh
 ```
 После обновления списка АнтиЗапрета, клиентам OpenVPN (antizapret-\*.ovpn) достаточно переподключиться к серверу\
-А клиентам WireGuard/AmneziaWG нужно добавить новые IP-адреса через запятую в конфигурационные файлы (antizapret-\*.conf) в строке AllowedIPs
+А клиентам WireGuard нужно добавить новые IP-адреса через запятую в конфигурационные файлы (antizapret-\*.conf) в строке AllowedIPs
 
 ***
 
@@ -176,7 +164,7 @@ nano /root/antizapret/config/include-ips.txt
 
 ## Настройка на роутерах
 OpenVPN на роутерах [Keenetic](./Keenetic.md), [TP-Link](./TP-Link.md) и [MikroTik](https://github.com/Kirito0098/AntiZapret-OpenVPN-Mikrotik)\
-WireGuard/AmneziaWG на роутерах [Keenetic](https://4pda.to/forum/index.php?showtopic=1095869&view=findpost&p=133090948), [MikroTik](https://4pda.to/forum/index.php?showtopic=1095869&view=findpost&p=133091005) и еще [Mikrotik](https://github.com/Kirito0098/AntiZapret-WG-Mikrotik), [OpenWrt](https://4pda.to/forum/index.php?showtopic=1095869&view=findpost&p=133105107) (для просмотра 4pda нужен VPN) и еще [OpenWrt](https://telegra.ph/AntiZapret-WireGuardAmneziaWG-on-OpenWrt-03-16)
+WireGuard на роутерах [Keenetic](https://4pda.to/forum/index.php?showtopic=1095869&view=findpost&p=133090948), [MikroTik](https://4pda.to/forum/index.php?showtopic=1095869&view=findpost&p=133091005) и еще [Mikrotik](https://github.com/Kirito0098/AntiZapret-WG-Mikrotik), [OpenWrt](https://4pda.to/forum/index.php?showtopic=1095869&view=findpost&p=133105107) (для просмотра 4pda нужен VPN) и еще [OpenWrt](https://telegra.ph/AntiZapret-WireGuard-on-OpenWrt-03-16)
 
 ***
 
@@ -199,7 +187,7 @@ WireGuard/AmneziaWG на роутерах [Keenetic](https://4pda.to/forum/index
 ## Настроить прокси-сервер
 Если ваш зарубежный сервер с АнтиЗапретом оказался заблокирован, то к нему можно настроить подключение через свой [сервер](#где-купить-сервер) в России
 
-Прокси перенаправляет трафик на порты 80, 443, 504, 508, 540, 580, 50080, 50443, 51080, 51443, 52080, 52443 — каждый локальный порт уходит на тот же порт на сервере АнтиЗапрета
+Прокси перенаправляет трафик на порты 80, 443, 504, 508, 540, 580, 50080, 50443, 51080, 51443 — каждый локальный порт уходит на тот же порт на сервере АнтиЗапрета
 
 1. Устанавливать на Ubuntu 22.04 и новее или Debian 12 и новее (рекомендуется Ubuntu 24.04)
 2. Для установки или обновления в терминале под root выполнить
@@ -218,7 +206,8 @@ bash <(wget -qO- --no-hsts --inet4-only https://raw.githubusercontent.com/Gubern
 
 ## FAQ
 
-### 1. Как переустановить сервер и сохранить настройки и работоспособность ранее созданных файлов подключений OpenVPN (\*.ovpn) и WireGuard/AmneziaWG (\*.conf)?
+### 1. Как переустановить сервер и сохранить настройки и работоспособность ранее созданных файлов подключений OpenVPN (\*.ovpn) и WireGuard (\*.conf)?
+
 Выполните команду
 ```
 /root/antizapret/client.sh 8
@@ -232,7 +221,7 @@ bash <(wget -qO- --no-hsts --inet4-only https://raw.githubusercontent.com/Gubern
 ### 2. Как посмотреть активные соединения?
 
 Посмотреть активные соединения и статистику OpenVPN можно в логах \*-status.log в папке /etc/openvpn/server/logs на сервере (файлы обновляются каждые 30 секунд)\
-Посмотреть активные соединения и статистику WireGuard/AmneziaWG можно командой
+Посмотреть активные соединения и статистику WireGuard можно командой
 ```
 wg show
 ```
@@ -244,7 +233,7 @@ wg show
 Клиенты AntiZapret VPN = 10.29.0.0/22, 10.29.4.0/22, 10.29.8.0/24 (172.29.0.0/22, 172.29.4.0/22, 172.29.8.0/24)\
 DNS АнтиЗапрета = 10.29.0.1, 10.29.4.1, 10.29.8.1 (172.29.0.1, 172.29.4.1, 172.29.8.1)\
 Подменные IP АнтиЗапрета = 10.30.0.0/15 (172.30.0.0/15)\
-Через запятую перечислены IP-адреса: OpenVPN UDP, OpenVPN TCP, WireGuard/AmneziaWG\
+Через запятую перечислены IP-адреса: OpenVPN UDP, OpenVPN TCP, WireGuard\
 В скобках указаны альтернативные IP-адреса
 
 ### 4. Как запретить нескольким клиентам использовать один и тот же файл подключения (\*.ovpn) для одновременного подключения к серверу?

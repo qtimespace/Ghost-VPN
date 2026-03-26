@@ -53,7 +53,7 @@ fi
 
 echo
 echo -e '\e[1;32mInstalling proxy for AntiZapret VPN server\e[0m'
-echo 'Proxied ports: 80, 443, 504, 508, 540, 580, 50080, 50443, 51080, 51443, 52080, 52443'
+echo 'Proxied ports: 80, 443, 504, 508, 540, 580, 50080, 50443, 51080, 51443'
 echo 'More details: https://github.com/GubernievS/AntiZapret-VPN'
 echo
 
@@ -263,13 +263,11 @@ iptables -w -t nat -A PREROUTING -p udp --dport 504 -j DNAT --to-destination $DE
 iptables -w -t nat -A PREROUTING -p udp --dport 508 -j DNAT --to-destination $DESTINATION_IP:508
 iptables -w -t nat -A PREROUTING -p udp --dport 50080 -j DNAT --to-destination $DESTINATION_IP:50080
 iptables -w -t nat -A PREROUTING -p udp --dport 50443 -j DNAT --to-destination $DESTINATION_IP:50443
-# WireGuard/AmneziaWG
+# WireGuard
 iptables -w -t nat -A PREROUTING -p udp --dport 540 -j DNAT --to-destination $DESTINATION_IP:540
 iptables -w -t nat -A PREROUTING -p udp --dport 580 -j DNAT --to-destination $DESTINATION_IP:580
 iptables -w -t nat -A PREROUTING -p udp --dport 51080 -j DNAT --to-destination $DESTINATION_IP:51080
 iptables -w -t nat -A PREROUTING -p udp --dport 51443 -j DNAT --to-destination $DESTINATION_IP:51443
-iptables -w -t nat -A PREROUTING -p udp --dport 52080 -j DNAT --to-destination $DESTINATION_IP:52080
-iptables -w -t nat -A PREROUTING -p udp --dport 52443 -j DNAT --to-destination $DESTINATION_IP:52443
 # SNAT
 iptables -w -t nat -A POSTROUTING -d $DESTINATION_IP -j SNAT --to-source $DEFAULT_IP
 

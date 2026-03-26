@@ -69,7 +69,7 @@ fi
 
 echo
 echo -e '\e[1;32mInstalling AntiZapret VPN + full VPN...\e[0m'
-echo 'OpenVPN + WireGuard + AmneziaWG'
+echo 'OpenVPN + WireGuard'
 echo 'More details: https://github.com/GubernievS/AntiZapret-VPN'
 echo
 
@@ -158,7 +158,7 @@ until [[ "$OPENVPN_BACKUP_UDP" =~ (y|n) ]]; do
 done
 echo
 until [[ "$WIREGUARD_BACKUP" =~ (y|n) ]]; do
-	read -rp 'Use ports 540, 580 as backup for WireGuard/AmneziaWG connections? [y/n]: ' -e -i y WIREGUARD_BACKUP
+	read -rp 'Use ports 540, 580 as backup for WireGuard connections? [y/n]: ' -e -i y WIREGUARD_BACKUP
 done
 echo
 until [[ "$OPENVPN_DUPLICATE" =~ (y|n) ]]; do
@@ -197,7 +197,7 @@ do
 	[[ -n $(getent ahostsv4 "$OPENVPN_HOST") ]] && break
 done
 echo
-while read -rp 'Enter valid domain name for this WireGuard/AmneziaWG server or press Enter to skip: ' -e WIREGUARD_HOST
+while read -rp 'Enter valid domain name for this WireGuard server or press Enter to skip: ' -e WIREGUARD_HOST
 do
 	[[ -z "$WIREGUARD_HOST" ]] && break
 	[[ -n $(getent ahostsv4 "$WIREGUARD_HOST") ]] && break
@@ -546,9 +546,9 @@ sed -i '/function policy\.PASS(state, _)/,/^end$/s/return state/return nil/' /us
 # Загружаем и создаем списки исключений
 /root/antizapret/doall.sh noclear
 
-# Настраиваем сервера OpenVPN и WireGuard/AmneziaWG для первого запуска
+# Настраиваем сервера OpenVPN и WireGuard для первого запуска
 # Пересоздаем для всех существующих пользователей файлы подключений
-# Если пользователей нет, то создаем новых пользователей 'antizapret-client' для OpenVPN и WireGuard/AmneziaWG
+# Если пользователей нет, то создаем новых пользователей 'antizapret-client' для OpenVPN и WireGuard
 /root/antizapret/client.sh 7
 
 # Включим/выключим обновляемые службы
@@ -590,11 +590,14 @@ if [[ -z "$(swapon --show)" ]]; then
 	set +e
 	SWAPFILE=/swapfile
 	SWAPSIZE=1024
-	dd if=/dev/zero of=$SWAPFILE bs=1M count=$SWAPSIZE
-	chmod 600 $SWAPFILE
-	mkswap $SWAPFILE
-	swapon $SWAPFILE
-	echo $SWAPFILE none swap sw 0 0 >> /etc/fstab
+	dd if=/dev/zero of="$SWAPFILE" bs=1M count=$SWAPSIZE
+	chmod 600 "$SWAPFILE"
+	mkswap "$SWAPFILE"
+	swapon "$SWAPFILE"
+	if ! grep -q "$SWAPFILE" /etc/fstab; then
+		echo "$SWAPFILE none swap sw 0 0" >> /etc/fstab
+	fi
+	set -e
 fi
 
 # Перезагружаем
