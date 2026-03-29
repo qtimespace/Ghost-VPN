@@ -1,4 +1,13 @@
 #!/bin/bash
+set -euo pipefail
+
+# Обработка ошибок
+handle_error() {
+	echo "$(lsb_release -ds 2>/dev/null || echo Unknown) $(uname -r) $(date --iso-8601=seconds 2>/dev/null || date)"
+	echo -e "\e[1;31mError at line $1: $2\e[0m"
+	exit 1
+}
+trap 'handle_error $LINENO "$BASH_COMMAND"' ERR
 
 # Проверка необходимости перезагрузить
 if [[ -f /var/run/reboot-required ]] || pidof apt apt-get dpkg unattended-upgrades >/dev/null 2>&1; then
@@ -81,30 +90,14 @@ done
 echo
 echo 'Installation, please wait...'
 
-# Удалим ненужные службы
-apt-get purge -y ufw
-apt-get purge -y firewalld
-apt-get purge -y apparmor
-apt-get purge -y apport
-apt-get purge -y modemmanager
-apt-get purge -y snapd
-apt-get purge -y upower
-apt-get purge -y multipath-tools
-apt-get purge -y rsyslog
-apt-get purge -y udisks2
-apt-get purge -y qemu-guest-agent
-apt-get purge -y tuned
-apt-get purge -y sysstat
-apt-get purge -y acpid
-apt-get purge -y fwupd
-apt-get purge -y watchdog
-apt-get purge -y pcscd
-apt-get purge -y packagekit
+# Удалим ненужные службы (|| true — пакет может быть не установлен)
+apt-get purge -y ufw firewalld apparmor apport modemmanager snapd \
+	upower multipath-tools rsyslog udisks2 qemu-guest-agent tuned \
+	sysstat acpid fwupd watchdog pcscd packagekit 2>/dev/null || true
 
 # SSH protection включён
 if [[ "$SSH_PROTECTION" == 'y' ]]; then
-	apt-get purge -y fail2ban
-	apt-get purge -y sshguard
+	apt-get purge -y fail2ban sshguard 2>/dev/null || true
 fi
 
 # Отключим IPv6
@@ -117,17 +110,6 @@ sed -i '/^$/!{/^#/!d}' /etc/sysctl.conf
 
 # Принудительная загрузка модуля nf_conntrack
 echo 'nf_conntrack' > /etc/modules-load.d/nf_conntrack.conf
-
-# Завершим выполнение скрипта при ошибке
-set -e
-
-# Обработка ошибок
-handle_error() {
-	echo "$(lsb_release -ds) $(uname -r) $(date --iso-8601=seconds)"
-	echo -e "\e[1;31mError at line $1: $2\e[0m"
-	exit 1
-}
-trap 'handle_error $LINENO "$BASH_COMMAND"' ERR
 
 # Автоматически сохраним правила iptables
 echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
@@ -315,8 +297,8 @@ iptables -w -t nat -A PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 540 -j DNA
 iptables -w -t nat -A PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 580 -j DNAT --to-destination $DNAT_TARGET:580
 iptables -w -t nat -A PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 51080 -j DNAT --to-destination $DNAT_TARGET:51080
 iptables -w -t nat -A PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 51443 -j DNAT --to-destination $DNAT_TARGET:51443
-# SNAT (scoped to forwarded traffic from external interface)
-iptables -w -t nat -A POSTROUTING -i $DEFAULT_INTERFACE -d $DNAT_TARGET -j SNAT --to-source $SNAT_SOURCE
+# SNAT
+iptables -w -t nat -A POSTROUTING -d "$DNAT_TARGET" -j SNAT --to-source "$SNAT_SOURCE"
 
 # Сброс счётчиков
 iptables -w -Z

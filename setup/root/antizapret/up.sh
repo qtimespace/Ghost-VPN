@@ -222,7 +222,11 @@ else
 fi
 
 # WireGuard site-to-site: разрешить VPN-трафик от relay серверов (только нужные порты)
-if ip link show wg-s2s &>/dev/null 2>&1; then
+if ip link show wg-s2s &>/dev/null; then
+	# INPUT — OpenVPN/WG слушает на 0.0.0.0, трафик от relay приходит на tunnel IP
+	iptables -w -I INPUT -i wg-s2s -p tcp -m multiport --dports 50080,50443 -j ACCEPT
+	iptables -w -I INPUT -i wg-s2s -p udp -m multiport --dports 50080,50443,51080,51443,540,580 -j ACCEPT
+	# FORWARD — для проброса трафика дальше
 	iptables -w -I FORWARD -i wg-s2s -p tcp -m multiport --dports 80,443,504,508,50080,50443 -j ACCEPT
 	iptables -w -I FORWARD -i wg-s2s -p udp -m multiport --dports 80,443,504,508,540,580,50080,50443,51080,51443 -j ACCEPT
 fi

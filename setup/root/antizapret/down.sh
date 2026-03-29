@@ -1,6 +1,8 @@
 #!/bin/bash
-# Suppress stderr only for iptables cleanup commands (rules may not exist)
-exec 2>/dev/null
+# iptables -D может fail если правило не существует — подавляем stderr per-command
+# НЕ используем exec 2>/dev/null — маскирует реальные ошибки
+iptables_del() { iptables "$@" 2>/dev/null || true; }
+ip6tables_del() { ip6tables "$@" 2>/dev/null || true; }
 
 cd /root/antizapret
 
@@ -38,94 +40,96 @@ if [[ -f "$WARP_PATH" ]]; then
 fi
 
 # WireGuard site-to-site cleanup
-iptables -w -D FORWARD -i wg-s2s -p tcp -m multiport --dports 80,443,504,508,50080,50443 -j ACCEPT
-iptables -w -D FORWARD -i wg-s2s -p udp -m multiport --dports 80,443,504,508,540,580,50080,50443,51080,51443 -j ACCEPT
+iptables_del -w -D INPUT -i wg-s2s -p tcp -m multiport --dports 50080,50443 -j ACCEPT
+iptables_del -w -D INPUT -i wg-s2s -p udp -m multiport --dports 50080,50443,51080,51443,540,580 -j ACCEPT
+iptables_del -w -D FORWARD -i wg-s2s -p tcp -m multiport --dports 80,443,504,508,50080,50443 -j ACCEPT
+iptables_del -w -D FORWARD -i wg-s2s -p udp -m multiport --dports 80,443,504,508,540,580,50080,50443,51080,51443 -j ACCEPT
 
 # filter
 # INPUT connection tracking
-iptables -w -D INPUT -m conntrack --ctstate INVALID -j DROP
-ip6tables -w -D INPUT -m conntrack --ctstate INVALID -j DROP
+iptables_del -w -D INPUT -m conntrack --ctstate INVALID -j DROP
+ip6tables_del -w -D INPUT -m conntrack --ctstate INVALID -j DROP
 # FORWARD connection tracking
-iptables -w -D FORWARD -m conntrack --ctstate INVALID -j DROP
-ip6tables -w -D FORWARD -m conntrack --ctstate INVALID -j DROP
+iptables_del -w -D FORWARD -m conntrack --ctstate INVALID -j DROP
+ip6tables_del -w -D FORWARD -m conntrack --ctstate INVALID -j DROP
 # OUTPUT connection tracking
-iptables -w -D OUTPUT -m conntrack --ctstate INVALID -j DROP
-ip6tables -w -D OUTPUT -m conntrack --ctstate INVALID -j DROP
+iptables_del -w -D OUTPUT -m conntrack --ctstate INVALID -j DROP
+ip6tables_del -w -D OUTPUT -m conntrack --ctstate INVALID -j DROP
 # Torrent guard
-iptables -w -D FORWARD -s $IP.28.0.0/16 -p tcp -m string --string 'GET ' --algo kmp --to 100 -m string --string 'info_hash=' --algo bm -m string --string 'peer_id=' --algo bm -m string --string 'port=' --algo bm -j SET --add-set antizapret-torrent src --exist
-iptables -w -D FORWARD -s $IP.28.0.0/16 -p udp -m string --string 'BitTorrent protocol' --algo kmp --to 100 -j SET --add-set antizapret-torrent src --exist
-iptables -w -D FORWARD -s $IP.28.0.0/16 -p udp -m string --string 'd1:ad2:id20:' --algo kmp --to 100 -j SET --add-set antizapret-torrent src --exist
-iptables -w -D FORWARD -s $IP.28.0.0/16 -m set --match-set antizapret-torrent src -j DROP
+iptables_del -w -D FORWARD -s $IP.28.0.0/16 -p tcp -m string --string 'GET ' --algo kmp --to 100 -m string --string 'info_hash=' --algo bm -m string --string 'peer_id=' --algo bm -m string --string 'port=' --algo bm -j SET --add-set antizapret-torrent src --exist
+iptables_del -w -D FORWARD -s $IP.28.0.0/16 -p udp -m string --string 'BitTorrent protocol' --algo kmp --to 100 -j SET --add-set antizapret-torrent src --exist
+iptables_del -w -D FORWARD -s $IP.28.0.0/16 -p udp -m string --string 'd1:ad2:id20:' --algo kmp --to 100 -j SET --add-set antizapret-torrent src --exist
+iptables_del -w -D FORWARD -s $IP.28.0.0/16 -m set --match-set antizapret-torrent src -j DROP
 # Restrict forwarding
-iptables -w -D FORWARD -s $IP.29.0.0/16 -m connmark --mark 0x1 -m set ! --match-set antizapret-forward dst -j DROP
+iptables_del -w -D FORWARD -s $IP.29.0.0/16 -m connmark --mark 0x1 -m set ! --match-set antizapret-forward dst -j DROP
 # Client and server isolation
-iptables -w -D FORWARD ! -i $OUT_INTERFACE -d $IP.28.0.0/15 -j DROP
-iptables -w -D FORWARD ! -i $WARP_INTERFACE -d $IP.28.0.0/15 -j DROP
-iptables -w -D INPUT -s $IP.28.0.0/15 -p tcp ! --dport 53 -j DROP
-iptables -w -D INPUT -s $IP.28.0.0/15 -p udp ! --dport 53 -j DROP
-iptables -w -D FORWARD -d $IP.28.0.0/15 -j ACCEPT
+iptables_del -w -D FORWARD ! -i $OUT_INTERFACE -d $IP.28.0.0/15 -j DROP
+iptables_del -w -D FORWARD ! -i $WARP_INTERFACE -d $IP.28.0.0/15 -j DROP
+iptables_del -w -D INPUT -s $IP.28.0.0/15 -p tcp ! --dport 53 -j DROP
+iptables_del -w -D INPUT -s $IP.28.0.0/15 -p udp ! --dport 53 -j DROP
+iptables_del -w -D FORWARD -d $IP.28.0.0/15 -j ACCEPT
 # SSH protection
-iptables -w -D INPUT -p tcp --dport ssh -m conntrack --ctstate NEW -m hashlimit --hashlimit-above 5/hour --hashlimit-burst 5 --hashlimit-mode srcip --hashlimit-srcmask 24 --hashlimit-name antizapret-ssh --hashlimit-htable-expire 60000 -j DROP
-ip6tables -w -D INPUT -p tcp --dport ssh -m conntrack --ctstate NEW -m hashlimit --hashlimit-above 5/hour --hashlimit-burst 5 --hashlimit-mode srcip --hashlimit-srcmask 64 --hashlimit-name antizapret-ssh6 --hashlimit-htable-expire 60000 -j DROP
+iptables_del -w -D INPUT -p tcp --dport ssh -m conntrack --ctstate NEW -m hashlimit --hashlimit-above 5/hour --hashlimit-burst 5 --hashlimit-mode srcip --hashlimit-srcmask 24 --hashlimit-name antizapret-ssh --hashlimit-htable-expire 60000 -j DROP
+ip6tables_del -w -D INPUT -p tcp --dport ssh -m conntrack --ctstate NEW -m hashlimit --hashlimit-above 5/hour --hashlimit-burst 5 --hashlimit-mode srcip --hashlimit-srcmask 64 --hashlimit-name antizapret-ssh6 --hashlimit-htable-expire 60000 -j DROP
 # Attack and scan protection
-iptables -w -D INPUT -i $DEFAULT_INTERFACE -p icmp --icmp-type echo-request -j DROP
-iptables -w -D INPUT -i $DEFAULT_INTERFACE -m set --match-set antizapret-allow src -j ACCEPT
-iptables -w -D INPUT -i $DEFAULT_INTERFACE -m conntrack --ctstate NEW -m set ! --match-set antizapret-watch src,dst -m hashlimit --hashlimit-above 20/hour --hashlimit-burst 20 --hashlimit-mode srcip --hashlimit-srcmask 24 --hashlimit-name antizapret-scan --hashlimit-htable-expire 600000 -j SET --add-set antizapret-block src --exist
-iptables -w -D INPUT -i $DEFAULT_INTERFACE -m conntrack --ctstate NEW -m hashlimit --hashlimit-above 100000/hour --hashlimit-burst 100000 --hashlimit-mode srcip --hashlimit-name antizapret-ddos --hashlimit-htable-expire 600000 -j SET --add-set antizapret-block src --exist
-iptables -w -D INPUT -i $DEFAULT_INTERFACE -m conntrack --ctstate NEW -m set --match-set antizapret-block src -j DROP
-iptables -w -D INPUT -i $DEFAULT_INTERFACE -m conntrack --ctstate NEW -j SET --add-set antizapret-watch src,dst --exist
-iptables -w -D OUTPUT -o $DEFAULT_INTERFACE -p tcp --tcp-flags RST RST -j DROP
-iptables -w -D OUTPUT -o $DEFAULT_INTERFACE -p icmp --icmp-type port-unreachable -j DROP
-ip6tables -w -D INPUT -i $DEFAULT_INTERFACE -p icmpv6 --icmpv6-type echo-request -j DROP
-ip6tables -w -D INPUT -i $DEFAULT_INTERFACE -m set --match-set antizapret-allow6 src -j ACCEPT
-ip6tables -w -D INPUT -i $DEFAULT_INTERFACE -m conntrack --ctstate NEW -m set ! --match-set antizapret-watch6 src,dst -m hashlimit --hashlimit-above 20/hour --hashlimit-burst 20 --hashlimit-mode srcip --hashlimit-srcmask 64 --hashlimit-name antizapret-scan6 --hashlimit-htable-expire 600000 -j SET --add-set antizapret-block6 src --exist
-ip6tables -w -D INPUT -i $DEFAULT_INTERFACE -m conntrack --ctstate NEW -m hashlimit --hashlimit-above 100000/hour --hashlimit-burst 100000 --hashlimit-mode srcip --hashlimit-name antizapret-ddos6 --hashlimit-htable-expire 600000 -j SET --add-set antizapret-block6 src --exist
-ip6tables -w -D INPUT -i $DEFAULT_INTERFACE -m conntrack --ctstate NEW -m set --match-set antizapret-block6 src -j DROP
-ip6tables -w -D INPUT -i $DEFAULT_INTERFACE -m conntrack --ctstate NEW -j SET --add-set antizapret-watch6 src,dst --exist
-ip6tables -w -D OUTPUT -o $DEFAULT_INTERFACE -p tcp --tcp-flags RST RST -j DROP
-ip6tables -w -D OUTPUT -o $DEFAULT_INTERFACE -p icmpv6 --icmpv6-type port-unreachable -j DROP
+iptables_del -w -D INPUT -i $DEFAULT_INTERFACE -p icmp --icmp-type echo-request -j DROP
+iptables_del -w -D INPUT -i $DEFAULT_INTERFACE -m set --match-set antizapret-allow src -j ACCEPT
+iptables_del -w -D INPUT -i $DEFAULT_INTERFACE -m conntrack --ctstate NEW -m set ! --match-set antizapret-watch src,dst -m hashlimit --hashlimit-above 20/hour --hashlimit-burst 20 --hashlimit-mode srcip --hashlimit-srcmask 24 --hashlimit-name antizapret-scan --hashlimit-htable-expire 600000 -j SET --add-set antizapret-block src --exist
+iptables_del -w -D INPUT -i $DEFAULT_INTERFACE -m conntrack --ctstate NEW -m hashlimit --hashlimit-above 100000/hour --hashlimit-burst 100000 --hashlimit-mode srcip --hashlimit-name antizapret-ddos --hashlimit-htable-expire 600000 -j SET --add-set antizapret-block src --exist
+iptables_del -w -D INPUT -i $DEFAULT_INTERFACE -m conntrack --ctstate NEW -m set --match-set antizapret-block src -j DROP
+iptables_del -w -D INPUT -i $DEFAULT_INTERFACE -m conntrack --ctstate NEW -j SET --add-set antizapret-watch src,dst --exist
+iptables_del -w -D OUTPUT -o $DEFAULT_INTERFACE -p tcp --tcp-flags RST RST -j DROP
+iptables_del -w -D OUTPUT -o $DEFAULT_INTERFACE -p icmp --icmp-type port-unreachable -j DROP
+ip6tables_del -w -D INPUT -i $DEFAULT_INTERFACE -p icmpv6 --icmpv6-type echo-request -j DROP
+ip6tables_del -w -D INPUT -i $DEFAULT_INTERFACE -m set --match-set antizapret-allow6 src -j ACCEPT
+ip6tables_del -w -D INPUT -i $DEFAULT_INTERFACE -m conntrack --ctstate NEW -m set ! --match-set antizapret-watch6 src,dst -m hashlimit --hashlimit-above 20/hour --hashlimit-burst 20 --hashlimit-mode srcip --hashlimit-srcmask 64 --hashlimit-name antizapret-scan6 --hashlimit-htable-expire 600000 -j SET --add-set antizapret-block6 src --exist
+ip6tables_del -w -D INPUT -i $DEFAULT_INTERFACE -m conntrack --ctstate NEW -m hashlimit --hashlimit-above 100000/hour --hashlimit-burst 100000 --hashlimit-mode srcip --hashlimit-name antizapret-ddos6 --hashlimit-htable-expire 600000 -j SET --add-set antizapret-block6 src --exist
+ip6tables_del -w -D INPUT -i $DEFAULT_INTERFACE -m conntrack --ctstate NEW -m set --match-set antizapret-block6 src -j DROP
+ip6tables_del -w -D INPUT -i $DEFAULT_INTERFACE -m conntrack --ctstate NEW -j SET --add-set antizapret-watch6 src,dst --exist
+ip6tables_del -w -D OUTPUT -o $DEFAULT_INTERFACE -p tcp --tcp-flags RST RST -j DROP
+ip6tables_del -w -D OUTPUT -o $DEFAULT_INTERFACE -p icmpv6 --icmpv6-type port-unreachable -j DROP
 
 # mangle
 # Clamp TCP MSS
-iptables -w -t mangle -D FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
-ip6tables -w -t mangle -D FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+iptables_del -w -t mangle -D FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+ip6tables_del -w -t mangle -D FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
 
 # raw
 # NOTRACK loopback
-iptables -w -t raw -D PREROUTING -i lo -j NOTRACK
-iptables -w -t raw -D OUTPUT -o lo -j NOTRACK
-ip6tables -w -t raw -D PREROUTING -i lo -j NOTRACK
-ip6tables -w -t raw -D OUTPUT -o lo -j NOTRACK
+iptables_del -w -t raw -D PREROUTING -i lo -j NOTRACK
+iptables_del -w -t raw -D OUTPUT -o lo -j NOTRACK
+ip6tables_del -w -t raw -D PREROUTING -i lo -j NOTRACK
+ip6tables_del -w -t raw -D OUTPUT -o lo -j NOTRACK
 
 # nat
 # OpenVPN TCP port redirection for backup connections
-iptables -w -t nat -D PREROUTING -i $DEFAULT_INTERFACE -p tcp --dport 80 -j REDIRECT --to-ports 50080
-iptables -w -t nat -D PREROUTING -i $DEFAULT_INTERFACE -p tcp --dport 443 -j REDIRECT --to-ports 50443
-iptables -w -t nat -D PREROUTING -i $DEFAULT_INTERFACE -p tcp --dport 504 -j REDIRECT --to-ports 50443
-iptables -w -t nat -D PREROUTING -i $DEFAULT_INTERFACE -p tcp --dport 508 -j REDIRECT --to-ports 50080
+iptables_del -w -t nat -D PREROUTING -i $DEFAULT_INTERFACE -p tcp --dport 80 -j REDIRECT --to-ports 50080
+iptables_del -w -t nat -D PREROUTING -i $DEFAULT_INTERFACE -p tcp --dport 443 -j REDIRECT --to-ports 50443
+iptables_del -w -t nat -D PREROUTING -i $DEFAULT_INTERFACE -p tcp --dport 504 -j REDIRECT --to-ports 50443
+iptables_del -w -t nat -D PREROUTING -i $DEFAULT_INTERFACE -p tcp --dport 508 -j REDIRECT --to-ports 50080
 # OpenVPN UDP port redirection for backup connections
-iptables -w -t nat -D PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 80 -j REDIRECT --to-ports 50080
-iptables -w -t nat -D PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 443 -j REDIRECT --to-ports 50443
-iptables -w -t nat -D PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 504 -j REDIRECT --to-ports 50443
-iptables -w -t nat -D PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 508 -j REDIRECT --to-ports 50080
+iptables_del -w -t nat -D PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 80 -j REDIRECT --to-ports 50080
+iptables_del -w -t nat -D PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 443 -j REDIRECT --to-ports 50443
+iptables_del -w -t nat -D PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 504 -j REDIRECT --to-ports 50443
+iptables_del -w -t nat -D PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 508 -j REDIRECT --to-ports 50080
 # WireGuard port redirection for backup connections
-iptables -w -t nat -D PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 540 -j REDIRECT --to-ports 51443
-iptables -w -t nat -D PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 580 -j REDIRECT --to-ports 51080
+iptables_del -w -t nat -D PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 540 -j REDIRECT --to-ports 51443
+iptables_del -w -t nat -D PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 580 -j REDIRECT --to-ports 51080
 # AntiZapret DNS redirection to Knot Resolver
-iptables -w -t nat -D PREROUTING -s $IP.29.0.0/16 -p udp --dport 53 -j DNAT --to-destination 127.0.0.1
-iptables -w -t nat -D PREROUTING -s $IP.29.0.0/16 -p tcp --dport 53 -j DNAT --to-destination 127.0.0.1
+iptables_del -w -t nat -D PREROUTING -s $IP.29.0.0/16 -p udp --dport 53 -j DNAT --to-destination 127.0.0.1
+iptables_del -w -t nat -D PREROUTING -s $IP.29.0.0/16 -p tcp --dport 53 -j DNAT --to-destination 127.0.0.1
 # VPN DNS redirection to Knot Resolver
-iptables -w -t nat -D PREROUTING -s $IP.28.0.0/16 -p udp --dport 53 -j DNAT --to-destination 127.0.0.2
-iptables -w -t nat -D PREROUTING -s $IP.28.0.0/16 -p tcp --dport 53 -j DNAT --to-destination 127.0.0.2
+iptables_del -w -t nat -D PREROUTING -s $IP.28.0.0/16 -p udp --dport 53 -j DNAT --to-destination 127.0.0.2
+iptables_del -w -t nat -D PREROUTING -s $IP.28.0.0/16 -p tcp --dport 53 -j DNAT --to-destination 127.0.0.2
 # Restrict forwarding
-iptables -w -t nat -D PREROUTING -s $IP.29.0.0/16 ! -d $FAKE_IP.0.0/15 -j CONNMARK --set-mark 0x1
+iptables_del -w -t nat -D PREROUTING -s $IP.29.0.0/16 ! -d $FAKE_IP.0.0/15 -j CONNMARK --set-mark 0x1
 # Mapping fake IP to real IP
-iptables -w -t nat -D PREROUTING -s $IP.29.0.0/16 -d $FAKE_IP.0.0/15 -j ANTIZAPRET-MAPPING
+iptables_del -w -t nat -D PREROUTING -s $IP.29.0.0/16 -d $FAKE_IP.0.0/15 -j ANTIZAPRET-MAPPING
 # SNAT/MASQUERADE VPN
-iptables -w -t nat -D POSTROUTING -s $IP.28.0.0/15 -o $OUT_INTERFACE -j SNAT --to-source $OUT_IP
-iptables -w -t nat -D POSTROUTING -s $IP.28.0.0/15 -o $OUT_INTERFACE -j MASQUERADE
-iptables -w -t nat -D POSTROUTING -s $IP.28.0.0/15 -o $WARP_INTERFACE -j SNAT --to-source $WARP_IP
-iptables -w -t nat -D POSTROUTING -s $IP.28.0.0/15 -o $WARP_INTERFACE -j MASQUERADE
+iptables_del -w -t nat -D POSTROUTING -s $IP.28.0.0/15 -o $OUT_INTERFACE -j SNAT --to-source $OUT_IP
+iptables_del -w -t nat -D POSTROUTING -s $IP.28.0.0/15 -o $OUT_INTERFACE -j MASQUERADE
+iptables_del -w -t nat -D POSTROUTING -s $IP.28.0.0/15 -o $WARP_INTERFACE -j SNAT --to-source $WARP_IP
+iptables_del -w -t nat -D POSTROUTING -s $IP.28.0.0/15 -o $WARP_INTERFACE -j MASQUERADE
 
 # WARP
 if [[ -f $WARP_PATH ]]; then

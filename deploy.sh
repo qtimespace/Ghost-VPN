@@ -97,6 +97,11 @@ check_deps() {
     if [[ "$needs_sshpass" == "1" ]] && ! command -v sshpass &>/dev/null; then
         die "sshpass is required for password authentication. Install: apt-get install sshpass"
     fi
+
+    # wg нужен для WireGuard s2s ключей
+    if [[ -n "${RELAY1_HOST:-}" ]] && ! command -v wg &>/dev/null; then
+        die "wg (wireguard-tools) is required for s2s key generation. Install: apt-get install wireguard-tools"
+    fi
 }
 
 # ── SSH функции ──────────────────────────────────────────────────────────────
@@ -508,8 +513,8 @@ export ATTACK_PROTECTION='${SETUP_ATTACK_PROTECTION:-y}'
 export TORRENT_GUARD='${SETUP_TORRENT_GUARD:-y}'
 export RESTRICT_FORWARD='${SETUP_RESTRICT_FORWARD:-y}'
 export CLIENT_ISOLATION='${SETUP_CLIENT_ISOLATION:-y}'
-export OPENVPN_HOST='${MAIN_DOMAIN:-}'
-export WIREGUARD_HOST='${MAIN_DOMAIN:-}'
+export OPENVPN_HOST='${RELAY1_DOMAIN:-${RELAY1_HOST:-${MAIN_DOMAIN:-}}}'
+export WIREGUARD_HOST='${RELAY1_DOMAIN:-${RELAY1_HOST:-${MAIN_DOMAIN:-}}}'
 export ROUTE_ALL='${SETUP_ROUTE_ALL:-n}'
 export DISCORD_INCLUDE='${SETUP_DISCORD_INCLUDE:-y}'
 export CLOUDFLARE_INCLUDE='${SETUP_CLOUDFLARE_INCLUDE:-y}'
@@ -673,11 +678,13 @@ PersistentKeepalive = 25
 WGEOF
 
         # VPN1 (relay1): клиент → VPN2, линк 10.99.1.0/30, VPN1=10.99.1.2
+        # Table=off обязательно! Иначе fwmark routing ломает DNAT forwarding
         cat > "${s2s_dir}/relay1-wg-s2s.conf" <<WGEOF
 [Interface]
 PrivateKey = $(cat "${s2s_dir}/relay1.key")
 Address = 10.99.1.2/30
 MTU = ${s2s_mtu}
+Table = off
 PostUp = ip link set dev %i txqueuelen 10000
 
 [Peer]
@@ -685,7 +692,7 @@ PostUp = ip link set dev %i txqueuelen 10000
 PublicKey = $(cat "${s2s_dir}/relay2.pub")
 PresharedKey = $(cat "${s2s_dir}/psk_relay1_next.key")
 Endpoint = ${RELAY2_HOST}:${s2s_port}
-AllowedIPs = 0.0.0.0/0
+AllowedIPs = 10.99.1.1/32
 PersistentKeepalive = 25
 WGEOF
 
@@ -710,11 +717,13 @@ AllowedIPs = 10.99.1.2/32
 WGEOF
 
         # VPN1 (relay1): клиент → VPN3, линк 10.99.1.0/30, VPN1=10.99.1.2
+        # Table=off обязательно! Иначе fwmark routing ломает DNAT forwarding
         cat > "${s2s_dir}/relay1-wg-s2s.conf" <<WGEOF
 [Interface]
 PrivateKey = $(cat "${s2s_dir}/relay1.key")
 Address = 10.99.1.2/30
 MTU = ${s2s_mtu}
+Table = off
 PostUp = ip link set dev %i txqueuelen 10000
 
 [Peer]
@@ -722,7 +731,7 @@ PostUp = ip link set dev %i txqueuelen 10000
 PublicKey = $(cat "${s2s_dir}/main.pub")
 PresharedKey = $(cat "${s2s_dir}/psk_relay1_next.key")
 Endpoint = ${MAIN_HOST}:${s2s_port}
-AllowedIPs = 0.0.0.0/0
+AllowedIPs = 10.99.1.1/32
 PersistentKeepalive = 25
 WGEOF
     fi
@@ -797,8 +806,6 @@ WGEOF
 
     # ── Проверка handshake ───────────────────────────────────────────────
     log "Verifying s2s tunnel handshakes..."
-    local verify_ok=1
-
     # Проверяем на main — должен видеть handshake
     local hs
     hs="$(ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile="${KNOWN_HOSTS}" \
@@ -829,7 +836,7 @@ WGEOF
                 for port in 540 580 51080 51443; do
                     iptables -w -t nat -A PREROUTING -i \$DEF_IF -p udp --dport \$port -j DNAT --to-destination 10.99.2.1:\$port
                 done
-                iptables -w -t nat -A POSTROUTING -i \$DEF_IF -d 10.99.2.1 -j SNAT --to-source 10.99.2.2
+                iptables -w -t nat -A POSTROUTING -d 10.99.2.1 -j SNAT --to-source 10.99.2.2
                 netfilter-persistent save
             "
         log_ok "Relay2 iptables reconfigured → tunnel IP 10.99.2.1"
@@ -848,7 +855,7 @@ WGEOF
                 for port in 540 580 51080 51443; do
                     iptables -w -t nat -A PREROUTING -i \$DEF_IF -p udp --dport \$port -j DNAT --to-destination 10.99.1.1:\$port
                 done
-                iptables -w -t nat -A POSTROUTING -i \$DEF_IF -d 10.99.1.1 -j SNAT --to-source 10.99.1.2
+                iptables -w -t nat -A POSTROUTING -d 10.99.1.1 -j SNAT --to-source 10.99.1.2
                 netfilter-persistent save
             "
         log_ok "Relay1 iptables reconfigured → tunnel IP 10.99.1.1"
@@ -867,7 +874,7 @@ WGEOF
                 for port in 540 580 51080 51443; do
                     iptables -w -t nat -A PREROUTING -i \$DEF_IF -p udp --dport \$port -j DNAT --to-destination 10.99.1.1:\$port
                 done
-                iptables -w -t nat -A POSTROUTING -i \$DEF_IF -d 10.99.1.1 -j SNAT --to-source 10.99.1.2
+                iptables -w -t nat -A POSTROUTING -d 10.99.1.1 -j SNAT --to-source 10.99.1.2
                 netfilter-persistent save
             "
         log_ok "Relay1 iptables reconfigured → tunnel IP 10.99.1.1"
@@ -968,12 +975,22 @@ main() {
         log_warn "deploy.conf has unsafe permissions ($conf_perms). Fixing to 600..."
         chmod 600 "$conf"
     fi
+    # Валидация формата deploy.conf (защита от command injection)
+    if grep -qP '^[^#=]*[;&|`$()]' "$conf" 2>/dev/null; then
+        die "deploy.conf contains shell metacharacters! Only KEY=value lines allowed."
+    fi
     # shellcheck source=/dev/null
     source "$conf"
 
     # Валидация обязательных параметров
     [[ -z "${MAIN_HOST:-}" ]] && die "MAIN_HOST is not set in deploy.conf"
     [[ -z "${MAIN_USER:-}" ]] && die "MAIN_USER is not set in deploy.conf"
+    # Валидация хостов (только допустимые символы)
+    local _validate_host
+    for _validate_host in "${MAIN_HOST:-}" "${RELAY1_HOST:-}" "${RELAY2_HOST:-}"; do
+        [[ -z "$_validate_host" ]] && continue
+        [[ "$_validate_host" =~ ^[a-zA-Z0-9._-]+$ ]] || die "Invalid hostname: $_validate_host"
+    done
 
     # Проверка зависимостей
     check_deps
@@ -1084,7 +1101,6 @@ main() {
     local deploy_pub
     deploy_pub="$(cat "$DEPLOY_KEY_PUB" 2>/dev/null || true)"
     if [[ -n "$deploy_pub" ]]; then
-        local _remove_key="sed -i '/ghost-vpn-deploy-$$/d' ~/.ssh/authorized_keys 2>/dev/null; echo removed"
         for _host_user in "${MAIN_HOST}:${MAIN_USER}" \
             "${RELAY2_HOST:-}:${RELAY2_USER:-root}" \
             "${RELAY1_HOST:-}:${RELAY1_USER:-root}"; do

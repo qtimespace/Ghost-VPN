@@ -88,15 +88,20 @@ Client ──[OpenVPN]──→ VPN1 ──[WireGuard s2s]──→ VPN2 (опц
 7. **wg-s2s-up на VPN2** — `Table = off` обязательно (иначе AllowedIPs=0.0.0.0/0 перехватит весь трафик)
 8. **Timeweb (VPN1) долго ребутается** — REBOOT_TIMEOUT=600 минимум
 9. **SNAT в proxy.sh** — при s2s source = upstream tunnel IP (не downstream), иначе VPN3 ответит не туда
-10. **deploy.sh cleanup удаляет ВСЕ ключи с `ghost-vpn-deploy`** — `sed -i '/ghost-vpn-deploy/d'` стирает и постоянный ключ! Фиксить на удаление только по PID: `ghost-vpn-deploy-$$`
+10. **deploy.sh cleanup удаляет ВСЕ ключи с `ghost-vpn-deploy`** — ~~ИСПРАВЛЕНО:~~ теперь удаляет только по PID `ghost-vpn-deploy-$$`
 11. **wg-s2s-up PostUp `ip route add`** падает с `RTNETLINK File exists` — маршрут /30 уже создаётся из Address. Убрать PostUp route
 12. **НИКОГДА не удалять пароли из deploy.conf** — пароли нужны как fallback для восстановления SSH доступа. deploy.conf защищён chmod 600, не коммитится в git (.gitignore)
 13. **VPN1 (Timeweb) SSH может быть заблокирован scan protection** — iptables DROP на порт 22 при превышении лимита. Доступ через WireGuard tunnel (10.99.1.2) как fallback
 14. **OPENVPN_HOST и WIREGUARD_HOST** в setup.sh на VPN3 — определяют `remote` в клиентских конфигах. Должны указывать на **VPN1** (точку входа клиента: RELAY1_DOMAIN), НЕ на VPN3. Если пустые — конфиги генерируются с IP VPN3, и клиенты будут подключаться напрямую, минуя relay
 15. **deploy.conf содержит RELAY1_DOMAIN** (www.imody.ru) — deploy.sh должен передавать его в setup.sh как OPENVPN_HOST/WIREGUARD_HOST при установке main сервера
 16. **proxy.sh DNAT `-i $DEFAULT_INTERFACE`** — если wg-s2s с AllowedIPs=0.0.0.0/0 подменил default route, `ip route get 1.2.3.4` вернёт wg-s2s вместо eth0. Физический интерфейс определять через `ip route show default` с фильтром `grep -v wg`
-17. **proxy.sh SNAT `-i $DEFAULT_INTERFACE`** — SNAT в POSTROUTING не поддерживает `-i` (input interface). Убрать `-i`, использовать только `-d $DNAT_TARGET`
+17. **proxy.sh SNAT `-i` в POSTROUTING** — ~~ИСПРАВЛЕНО:~~ убран `-i`, используется только `-d $DNAT_TARGET`
 18. **VPN3 up.sh** — нужен не только FORWARD но и INPUT от wg-s2s (OpenVPN слушает на 0.0.0.0, трафик приходит на tunnel IP как INPUT, не FORWARD)
+19. **VPN2 (промежуточный relay) DNAT** — трафик от VPN1 приходит через `wg-s2s`, не через `eth0`. Нужны DNAT правила и для `-i wg-s2s`, не только `-i eth0`
+20. **Два типа конфигов**: antizapret (порт 50443/504/443) — split tunneling, vpn (порт 50080/508/80) — full VPN. Раньше использовался vpn (50080)
+21. **OpenVPN DCO несовместим с WireGuard s2s tunnel** — при работе через tunnel DCO раздувает пакеты (`tried=26, actual=15370`). Нужен `disable-dco` в серверных конфигах OpenVPN на VPN3 если трафик идёт через s2s
+22. **wg-s2s на relay ОБЯЗАТЕЛЬНО `Table = off` и `AllowedIPs = peer_ip/32`** — без Table=off wg-quick создаёт fwmark policy routing, ломает DNAT. AllowedIPs=/32 (не /30 и не 0.0.0.0/0)
+23. **AllowedIPs = 10.99.x.1/32 на relay** (конкретный peer), `0.0.0.0/0` — только на wg-s2s-up с `Table = off`
 
 ## Key Weaknesses Found (Code Review)
 
@@ -108,7 +113,7 @@ Client ──[OpenVPN]──→ VPN1 ──[WireGuard s2s]──→ VPN2 (опц
 
 ### High
 
-1. **`exec 2>/dev/null`** in down.sh (line 2) silently suppresses ALL stderr - masks real errors during teardown
+1. ~~**`exec 2>/dev/null`** in down.sh~~ — ИСПРАВЛЕНО: заменён на per-command `iptables_del()` wrapper
 2. **Race condition in proxy.py** `get_fake_ip()`: Lock released before iptables rule is added (lines 52-53), another thread could see inconsistent state
 3. **Hardcoded third-party proxy** in update.sh (line 100): `api.codetabs.com` used as fallback proxy - untrusted third party could intercept/modify downloaded lists
 4. **`srand((unsigned)time(NULL))`** in patch-openvpn.sh C patch: time-based seed is predictable, weakens anti-censorship obfuscation
