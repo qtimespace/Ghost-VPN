@@ -221,6 +221,12 @@ else
 	iptables -w -t nat -A POSTROUTING -s $IP.28.0.0/15 -o $OUT_INTERFACE -j SNAT --to-source $OUT_IP
 fi
 
+# WireGuard site-to-site: разрешить VPN-трафик от relay серверов (только нужные порты)
+if ip link show wg-s2s &>/dev/null 2>&1; then
+	iptables -w -I FORWARD -i wg-s2s -p tcp -m multiport --dports 80,443,504,508,50080,50443 -j ACCEPT
+	iptables -w -I FORWARD -i wg-s2s -p udp -m multiport --dports 80,443,504,508,540,580,50080,50443,51080,51443 -j ACCEPT
+fi
+
 # Network tuning
 CPU_MASK=$(printf '%x' $(( (1 << $(nproc)) - 1 )))
 for dev in $(ls /sys/class/net); do

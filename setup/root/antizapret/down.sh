@@ -37,6 +37,10 @@ if [[ -f "$WARP_PATH" ]]; then
 	WARP_IP=$(awk -F'= ' '/^Address/{print $2; exit}' "$WARP_PATH")
 fi
 
+# WireGuard site-to-site cleanup
+iptables -w -D FORWARD -i wg-s2s -p tcp -m multiport --dports 80,443,504,508,50080,50443 -j ACCEPT
+iptables -w -D FORWARD -i wg-s2s -p udp -m multiport --dports 80,443,504,508,540,580,50080,50443,51080,51443 -j ACCEPT
+
 # filter
 # INPUT connection tracking
 iptables -w -D INPUT -m conntrack --ctstate INVALID -j DROP

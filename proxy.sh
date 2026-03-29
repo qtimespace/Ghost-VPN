@@ -140,7 +140,7 @@ apt-get update
 dpkg --configure -a
 apt-get install --fix-broken -y
 apt-get dist-upgrade -y
-apt-get install -y iptables iptables-persistent irqbalance unattended-upgrades
+apt-get install -y iptables iptables-persistent irqbalance unattended-upgrades wireguard
 apt-get autoremove --purge -y
 apt-get clean
 dpkg-reconfigure -f noninteractive unattended-upgrades
@@ -200,6 +200,53 @@ net.ipv6.conf.all.disable_ipv6=1
 net.ipv6.conf.default.disable_ipv6=1
 net.ipv6.conf.lo.disable_ipv6=1" > /etc/sysctl.d/99-disable-ipv6.conf
 
+# WireGuard site-to-site туннель
+S2S_CONF="/etc/wireguard/wg-s2s.conf"
+if [[ -f "$S2S_CONF" ]]; then
+	echo 'Activating WireGuard site-to-site tunnel...'
+	# Выключим если уже был поднят (переустановка)
+	wg-quick down wg-s2s 2>/dev/null || true
+	wg-quick up wg-s2s
+	systemctl enable wg-quick@wg-s2s
+
+	# Извлекаем tunnel IP для DNAT/SNAT
+	LOCAL_TUNNEL_IP="$(grep -oP 'Address\s*=\s*\K[0-9.]+' "$S2S_CONF")"
+	# Tunnel destination — передаётся через env или вычисляется из конфига
+	if [[ -z "$TUNNEL_DESTINATION_IP" ]]; then
+		# Вычисляем peer IP из AllowedIPs или Endpoint
+		TUNNEL_DESTINATION_IP="$(grep -oP 'AllowedIPs\s*=\s*\K[0-9.]+' "$S2S_CONF" | head -1)"
+		# Для клиентского конфига (AllowedIPs=0.0.0.0/0) берём из Endpoint
+		if [[ "$TUNNEL_DESTINATION_IP" == "0" || -z "$TUNNEL_DESTINATION_IP" ]]; then
+			# /30 подсеть: .2 -> .1, .1 -> .2
+			local_last_octet="${LOCAL_TUNNEL_IP##*.}"
+			base_ip="${LOCAL_TUNNEL_IP%.*}"
+			if [[ "$local_last_octet" == "2" ]]; then
+				TUNNEL_DESTINATION_IP="${base_ip}.1"
+			else
+				TUNNEL_DESTINATION_IP="${base_ip}.2"
+			fi
+		fi
+	fi
+	# Поднимаем upstream tunnel если есть (VPN2: wg-s2s-up → VPN3)
+	S2S_UP_CONF="/etc/wireguard/wg-s2s-up.conf"
+	if [[ -f "$S2S_UP_CONF" ]]; then
+		echo 'Activating upstream WireGuard tunnel (wg-s2s-up)...'
+		wg-quick down wg-s2s-up 2>/dev/null || true
+		wg-quick up wg-s2s-up
+		systemctl enable wg-quick@wg-s2s-up
+		# SNAT source — upstream tunnel IP (для ответов от VPN3 обратно)
+		LOCAL_TUNNEL_IP="$(grep -oP 'Address\s*=\s*\K[0-9.]+' "$S2S_UP_CONF")"
+	fi
+
+	echo "  Tunnel: ${LOCAL_TUNNEL_IP} → ${TUNNEL_DESTINATION_IP}"
+	DNAT_TARGET="$TUNNEL_DESTINATION_IP"
+	SNAT_SOURCE="$LOCAL_TUNNEL_IP"
+else
+	echo 'No WireGuard s2s config found, using direct DNAT to public IP'
+	DNAT_TARGET="$DESTINATION_IP"
+	SNAT_SOURCE="$DEFAULT_IP"
+fi
+
 # Очистка правил iptables
 iptables -w -F
 iptables -w -t nat -F
@@ -250,26 +297,26 @@ ip6tables -w -t mangle -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --cla
 
 # nat
 # OpenVPN TCP
-iptables -w -t nat -A PREROUTING -p tcp --dport 80 -j DNAT --to-destination $DESTINATION_IP:80
-iptables -w -t nat -A PREROUTING -p tcp --dport 443 -j DNAT --to-destination $DESTINATION_IP:443
-iptables -w -t nat -A PREROUTING -p tcp --dport 504 -j DNAT --to-destination $DESTINATION_IP:504
-iptables -w -t nat -A PREROUTING -p tcp --dport 508 -j DNAT --to-destination $DESTINATION_IP:508
-iptables -w -t nat -A PREROUTING -p tcp --dport 50080 -j DNAT --to-destination $DESTINATION_IP:50080
-iptables -w -t nat -A PREROUTING -p tcp --dport 50443 -j DNAT --to-destination $DESTINATION_IP:50443
+iptables -w -t nat -A PREROUTING -i $DEFAULT_INTERFACE -p tcp --dport 80 -j DNAT --to-destination $DNAT_TARGET:80
+iptables -w -t nat -A PREROUTING -i $DEFAULT_INTERFACE -p tcp --dport 443 -j DNAT --to-destination $DNAT_TARGET:443
+iptables -w -t nat -A PREROUTING -i $DEFAULT_INTERFACE -p tcp --dport 504 -j DNAT --to-destination $DNAT_TARGET:504
+iptables -w -t nat -A PREROUTING -i $DEFAULT_INTERFACE -p tcp --dport 508 -j DNAT --to-destination $DNAT_TARGET:508
+iptables -w -t nat -A PREROUTING -i $DEFAULT_INTERFACE -p tcp --dport 50080 -j DNAT --to-destination $DNAT_TARGET:50080
+iptables -w -t nat -A PREROUTING -i $DEFAULT_INTERFACE -p tcp --dport 50443 -j DNAT --to-destination $DNAT_TARGET:50443
 # OpenVPN UDP
-iptables -w -t nat -A PREROUTING -p udp --dport 80 -j DNAT --to-destination $DESTINATION_IP:80
-iptables -w -t nat -A PREROUTING -p udp --dport 443 -j DNAT --to-destination $DESTINATION_IP:443
-iptables -w -t nat -A PREROUTING -p udp --dport 504 -j DNAT --to-destination $DESTINATION_IP:504
-iptables -w -t nat -A PREROUTING -p udp --dport 508 -j DNAT --to-destination $DESTINATION_IP:508
-iptables -w -t nat -A PREROUTING -p udp --dport 50080 -j DNAT --to-destination $DESTINATION_IP:50080
-iptables -w -t nat -A PREROUTING -p udp --dport 50443 -j DNAT --to-destination $DESTINATION_IP:50443
-# WireGuard
-iptables -w -t nat -A PREROUTING -p udp --dport 540 -j DNAT --to-destination $DESTINATION_IP:540
-iptables -w -t nat -A PREROUTING -p udp --dport 580 -j DNAT --to-destination $DESTINATION_IP:580
-iptables -w -t nat -A PREROUTING -p udp --dport 51080 -j DNAT --to-destination $DESTINATION_IP:51080
-iptables -w -t nat -A PREROUTING -p udp --dport 51443 -j DNAT --to-destination $DESTINATION_IP:51443
-# SNAT
-iptables -w -t nat -A POSTROUTING -d $DESTINATION_IP -j SNAT --to-source $DEFAULT_IP
+iptables -w -t nat -A PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 80 -j DNAT --to-destination $DNAT_TARGET:80
+iptables -w -t nat -A PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 443 -j DNAT --to-destination $DNAT_TARGET:443
+iptables -w -t nat -A PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 504 -j DNAT --to-destination $DNAT_TARGET:504
+iptables -w -t nat -A PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 508 -j DNAT --to-destination $DNAT_TARGET:508
+iptables -w -t nat -A PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 50080 -j DNAT --to-destination $DNAT_TARGET:50080
+iptables -w -t nat -A PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 50443 -j DNAT --to-destination $DNAT_TARGET:50443
+# WireGuard (клиентские порты)
+iptables -w -t nat -A PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 540 -j DNAT --to-destination $DNAT_TARGET:540
+iptables -w -t nat -A PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 580 -j DNAT --to-destination $DNAT_TARGET:580
+iptables -w -t nat -A PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 51080 -j DNAT --to-destination $DNAT_TARGET:51080
+iptables -w -t nat -A PREROUTING -i $DEFAULT_INTERFACE -p udp --dport 51443 -j DNAT --to-destination $DNAT_TARGET:51443
+# SNAT (scoped to forwarded traffic from external interface)
+iptables -w -t nat -A POSTROUTING -i $DEFAULT_INTERFACE -d $DNAT_TARGET -j SNAT --to-source $SNAT_SOURCE
 
 # Сброс счётчиков
 iptables -w -Z

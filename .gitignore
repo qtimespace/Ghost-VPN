@@ -1,6 +1,9 @@
 # Environment and secrets
 .env
 .env.*
+deploy.conf
+.deploy_state
+deploy-audit.log
 *.pem
 *.key
 *.crt

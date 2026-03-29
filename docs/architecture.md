@@ -1,14 +1,32 @@
 # Ghost-VPN Architecture & Anti-Censorship Strategy
 
-## Текущая архитектура
+## Текущая архитектура (реализовано)
 
 ```text
+Прямое подключение:
 Client (Россия) --[OpenVPN UDP/TCP]--> VPN Server (за рубежом) --> Internet
                 --[WireGuard UDP]----> VPN Server (за рубежом) --> Internet
 
-Relay (опция):
-Client --> proxy.sh (DNAT relay, РФ) --> VPN Server (за рубежом) --> Internet
+Через relay цепочку (WireGuard site-to-site шифрование между серверами):
+Client --[OpenVPN]--> VPN1 (relay) --[WireGuard s2s]--> VPN2 (relay, опц.) --[WireGuard s2s]--> VPN3 (main)
 ```
+
+### Серверы (текущая конфигурация)
+
+| Сервер | IP | Роль | Расположение |
+|--------|-----|------|-------------|
+| VPN1 | 72.56.11.181 | Relay + deploy-машина | Timeweb, Россия |
+| VPN2 | 157.22.172.160 | Relay (опциональный) | imody.ru, Россия |
+| VPN3 | 5.42.199.85 | Main VPN | Германия |
+
+### WireGuard Site-to-Site
+
+- Порт: 51820 UDP (отдельно от клиентских 51443/51080)
+- Интерфейс: `wg-s2s` (на VPN2 также `wg-s2s-up`)
+- IP-адресация: 10.99.1.0/30 (VPN1↔next), 10.99.2.0/30 (VPN2↔VPN3)
+- MTU: 1420
+- PresharedKey: да (post-quantum защита)
+- Relay использует iptables DNAT к tunnel IP + SNAT от tunnel IP
 
 ## Целевая архитектура: Multi-hop + VLESS
 
@@ -124,32 +142,12 @@ Internet:51443 -> WireGuard (прямое подключение)
 }
 ```
 
-### Этап 3: Multi-hop VPN
+### Этап 3: Multi-hop VPN ✅ Реализовано
 
-1. На VPN1 (relay): WireGuard-клиент к VPN2
-2. Маршрутизация трафика из OpenVPN-туннеля через WireGuard к VPN2
-3. Split tunneling сохраняется: DNS-резолвер на VPN2
+WireGuard site-to-site туннели между relay и main серверами.
+Реализовано в `deploy.sh` (функция `setup_s2s_wireguard()`) и `proxy.sh`.
 
-**На VPN1:**
-
-```bash
-# wg-to-vpn2.conf
-[Interface]
-PrivateKey = <key>
-Address = 10.99.0.2/24
-
-[Peer]
-PublicKey = <vpn2-pubkey>
-Endpoint = <vpn2-ip>:51443
-AllowedIPs = 0.0.0.0/0
-PersistentKeepalive = 25
-```
-
-```bash
-# Маршрутизация
-iptables -t nat -A POSTROUTING -o wg-to-vpn2 -j MASQUERADE
-iptables -A FORWARD -i tun+ -o wg-to-vpn2 -j ACCEPT
-```
+Подробности в секции "Текущая архитектура" выше.
 
 ---
 

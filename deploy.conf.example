@@ -1,0 +1,66 @@
+# Ghost-VPN Deploy Configuration
+# Скопируй этот файл: cp deploy.conf.example deploy.conf
+# Заполни данные серверов и запусти: bash deploy.sh
+#
+# Топология: Клиент → [Relay1] → [Relay2] → Main VPN
+# Relay серверы опциональны — оставь пустыми если не нужны.
+
+# ── Main VPN сервер (обязательно) ──────────────────────────────────────────
+# Конечный VPN сервер с полной установкой Ghost-VPN
+MAIN_HOST=
+MAIN_USER=root
+MAIN_PASS=                    # пароль (если не используется SSH ключ)
+MAIN_SSH_KEY=                 # путь к приватному SSH ключу (опционально)
+MAIN_DOMAIN=                  # домен для OpenVPN/WireGuard сертификатов (опционально)
+                              # Например: vpn.example.com
+
+# ── Relay 1 (опционально, ближайший к клиенту) ─────────────────────────────
+# Промежуточный relay сервер — устанавливается proxy.sh
+# Пробрасывает трафик на Relay2 (или Main если Relay2 не задан)
+RELAY1_HOST=
+RELAY1_USER=root
+RELAY1_PASS=
+RELAY1_SSH_KEY=
+
+# ── Relay 2 (опционально, между Relay1 и Main) ─────────────────────────────
+# Второй relay сервер
+# Пробрасывает трафик на Main
+RELAY2_HOST=
+RELAY2_USER=root
+RELAY2_PASS=
+RELAY2_SSH_KEY=
+
+# ── Настройки установки setup.sh (опционально) ─────────────────────────────
+# Все значения по умолчанию уже оптимальны.
+# Раскомментируй и измени если нужно.
+
+#SETUP_OPENVPN_PATCH=1        # 0=без патча, 1=сильный (рекомендуется), 2=без ошибок
+#SETUP_OPENVPN_DCO=y          # OpenVPN DCO (снижает нагрузку на CPU)
+#SETUP_WARP_OUTBOUND=n        # Cloudflare WARP для всего исходящего трафика
+#SETUP_ANTIZAPRET_DNS=1       # DNS для AntiZapret VPN (1=Cloudflare+Quad9)
+#SETUP_VPN_DNS=1              # DNS для full VPN (1=тот же что у AntiZapret)
+#SETUP_BLOCK_ADS=y            # Блокировка рекламы через AdGuard+OISD
+#SETUP_SSH_PROTECTION=y       # Защита SSH от брутфорса
+#SETUP_ATTACK_PROTECTION=y    # Защита от DDoS/сканирования
+#SETUP_TORRENT_GUARD=y        # Блокировка торрентов
+#SETUP_OPENVPN_BACKUP_TCP=n   # Резервные TCP порты 80,443,504,508
+#SETUP_OPENVPN_BACKUP_UDP=y   # Резервные UDP порты 80,443,504,508
+#SETUP_WIREGUARD_BACKUP=y     # Резервные порты WireGuard 540,580
+#SETUP_OPENVPN_DUPLICATE=y    # Разрешить несколько клиентов с одним профилем
+#SETUP_DISCORD_INCLUDE=y      # Discord voice IPs через AntiZapret VPN
+#SETUP_CLOUDFLARE_INCLUDE=y   # Cloudflare IPs через AntiZapret VPN
+#SETUP_TELEGRAM_INCLUDE=y     # Telegram IPs через AntiZapret VPN
+#SETUP_WHATSAPP_INCLUDE=y     # WhatsApp IPs через AntiZapret VPN
+#SETUP_ROBLOX_INCLUDE=y       # Roblox IPs через AntiZapret VPN
+
+# ── WireGuard Site-to-Site туннель (автоматически, обычно не нужно менять) ──
+# Шифрует трафик между relay и main сервером
+#S2S_PORT=51820               # UDP порт для s2s туннеля
+#S2S_MTU=1420                 # MTU для s2s туннеля
+#S2S_SUBNET_1=10.99.1.0/30   # Подсеть: relay1 ↔ следующий хоп
+#S2S_SUBNET_2=10.99.2.0/30   # Подсеть: relay2 ↔ main (если relay2 есть)
+
+# ── Таймауты ────────────────────────────────────────────────────────────────
+#REBOOT_TIMEOUT=600           # секунд ожидания перезагрузки сервера
+#REBOOT_INTERVAL=10           # секунд между попытками переподключения
+#INSTALL_TIMEOUT=1800         # секунд ожидания завершения установки (30 мин)

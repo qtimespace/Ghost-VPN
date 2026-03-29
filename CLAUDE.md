@@ -12,7 +12,8 @@ Supports OpenVPN and WireGuard protocols on Ubuntu 22+ / Debian 12+.
 - Knot Resolver (Lua config) with RPZ zones for domain-based routing decisions
 - Ad/tracker/phishing blocking via AdGuard and OISD lists
 - Anti-censorship OpenVPN patch (C code injected via sed into OpenVPN source)
-- Proxy relay server for cases when the VPN server itself is blocked
+- Proxy relay server with WireGuard site-to-site encryption between relay and main server
+- Multi-hop relay chain: Client → VPN1 → [VPN2] → VPN3 (all inter-server traffic encrypted)
 - Client management (OpenVPN certificates via EasyRSA, WireGuard key pairs)
 - Network security: SSH brute-force protection, DDoS/scan protection via ipset, torrent guard, client isolation
 
@@ -28,7 +29,9 @@ Supports OpenVPN and WireGuard protocols on Ubuntu 22+ / Debian 12+.
 
 ```text
 setup.sh              - Main installation script (interactive, runs on target server)
-proxy.sh              - Proxy relay server installation script
+proxy.sh              - Proxy relay server installation script (with WireGuard s2s support)
+deploy.sh             - Automated deployment of entire VPN + relay chain
+deploy.conf           - Server topology and deployment configuration
 setup/
   etc/
     knot-resolver/     - DNS resolver config (kresd.conf, RPZ zones, Lua modules)
@@ -53,6 +56,44 @@ setup/
 docs/
   agents/              - Agent definitions for NEXUS pipeline
 ```
+
+## Network Topology (зафиксирована, не менять)
+
+```text
+Client ──[OpenVPN]──→ VPN1 ──[WireGuard s2s]──→ VPN2 (опц.) ──[WireGuard s2s]──→ VPN3
+```
+
+- **VPN1** (72.56.11.181, Timeweb) — relay, deploy-машина
+- **VPN2** (157.22.172.160, imody.ru) — relay (опциональный)
+- **VPN3** (5.42.199.85, Германия) — main VPN сервер
+
+### WireGuard Site-to-Site
+
+- Порт: 51820 UDP, интерфейс: `wg-s2s`
+- IP: 10.99.1.0/30 (VPN1↔next hop), 10.99.2.0/30 (VPN2↔VPN3)
+- Ключи генерируются deploy.sh, конфиги раскладываются через SCP
+- proxy.sh делает DNAT к tunnel IP (не к публичному) + SNAT от tunnel IP
+- VPN3 принимает трафик от wg-s2s (iptables FORWARD с конкретными VPN портами, не blanket ACCEPT)
+- VPN2 имеет 2 WireGuard интерфейса: `wg-s2s` (принимает от VPN1) + `wg-s2s-up` (к VPN3), КАЖДЫЙ со своим keypair
+- `TUNNEL_DESTINATION_IP` передаётся из deploy.sh в proxy.sh через env (не вычисляется из конфига!)
+
+## Deploy Script Gotchas (не забывать!)
+
+1. **deploy.sh генерирует ВРЕМЕННЫЙ SSH ключ** — при resume (state file) ключ не установлен на серверах. Нужен `install_deploy_key` перед каждой фазой
+2. **`while read` в proxy.sh/setup.sh** перезаписывает env при EOF stdin — передавать значения через env export ДО pipe
+3. **`-o BatchMode=yes`** блокирует sshpass (пароли) — нужна подмена на `BatchMode=no`
+4. **VPN1 = deploy-машина И relay** — proxy.sh делает reboot → deploy.sh умирает. VPN1 устанавливается ПОСЛЕДНИМ
+5. **`wg genkey` требует umask 077** — без этого предупреждение "writing to world accessible file"
+6. **VPN2 с двумя WG интерфейсами** — нельзя использовать один private key на 2 интерфейса (WireGuard запрещает)
+7. **wg-s2s-up на VPN2** — `Table = off` обязательно (иначе AllowedIPs=0.0.0.0/0 перехватит весь трафик)
+8. **Timeweb (VPN1) долго ребутается** — REBOOT_TIMEOUT=600 минимум
+9. **SNAT в proxy.sh** — при s2s source = upstream tunnel IP (не downstream), иначе VPN3 ответит не туда
+10. **deploy.sh cleanup удаляет ВСЕ ключи с `ghost-vpn-deploy`** — `sed -i '/ghost-vpn-deploy/d'` стирает и постоянный ключ! Фиксить на удаление только по PID: `ghost-vpn-deploy-$$`
+11. **wg-s2s-up PostUp `ip route add`** падает с `RTNETLINK File exists` — маршрут /30 уже создаётся из Address. Убрать PostUp route
+12. **НИКОГДА не удалять пароли из deploy.conf** — пароли нужны как fallback для восстановления SSH доступа. deploy.conf защищён chmod 600, не коммитится в git (.gitignore)
+13. **VPN1 (Timeweb) SSH может быть заблокирован scan protection** — iptables DROP на порт 22 при превышении лимита. Доступ через WireGuard tunnel (10.99.1.2) как fallback
+14. **OPENVPN_HOST и WIREGUARD_HOST** в setup.sh на VPN3 — определяют `remote` в клиентских конфигах. Должны указывать на **VPN1** (точку входа клиента: RELAY1_DOMAIN), НЕ на VPN3. Если пустые — конфиги генерируются с IP VPN3, и клиенты будут подключаться напрямую, минуя relay
+15. **deploy.conf содержит RELAY1_DOMAIN** (www.imody.ru) — deploy.sh должен передавать его в setup.sh как OPENVPN_HOST/WIREGUARD_HOST при установке main сервера
 
 ## Key Weaknesses Found (Code Review)
 
