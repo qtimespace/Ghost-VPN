@@ -94,6 +94,9 @@ Client ──[OpenVPN]──→ VPN1 ──[WireGuard s2s]──→ VPN2 (опц
 13. **VPN1 (Timeweb) SSH может быть заблокирован scan protection** — iptables DROP на порт 22 при превышении лимита. Доступ через WireGuard tunnel (10.99.1.2) как fallback
 14. **OPENVPN_HOST и WIREGUARD_HOST** в setup.sh на VPN3 — определяют `remote` в клиентских конфигах. Должны указывать на **VPN1** (точку входа клиента: RELAY1_DOMAIN), НЕ на VPN3. Если пустые — конфиги генерируются с IP VPN3, и клиенты будут подключаться напрямую, минуя relay
 15. **deploy.conf содержит RELAY1_DOMAIN** (www.imody.ru) — deploy.sh должен передавать его в setup.sh как OPENVPN_HOST/WIREGUARD_HOST при установке main сервера
+16. **proxy.sh DNAT `-i $DEFAULT_INTERFACE`** — если wg-s2s с AllowedIPs=0.0.0.0/0 подменил default route, `ip route get 1.2.3.4` вернёт wg-s2s вместо eth0. Физический интерфейс определять через `ip route show default` с фильтром `grep -v wg`
+17. **proxy.sh SNAT `-i $DEFAULT_INTERFACE`** — SNAT в POSTROUTING не поддерживает `-i` (input interface). Убрать `-i`, использовать только `-d $DNAT_TARGET`
+18. **VPN3 up.sh** — нужен не только FORWARD но и INPUT от wg-s2s (OpenVPN слушает на 0.0.0.0, трафик приходит на tunnel IP как INPUT, не FORWARD)
 
 ## Key Weaknesses Found (Code Review)
 
