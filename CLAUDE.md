@@ -102,6 +102,7 @@ Client ──[OpenVPN]──→ VPN1 ──[WireGuard s2s]──→ VPN2 (опц
 21. **OpenVPN DCO несовместим с WireGuard s2s tunnel** — при работе через tunnel DCO раздувает пакеты (`tried=26, actual=15370`). Нужен `disable-dco` в серверных конфигах OpenVPN на VPN3 если трафик идёт через s2s
 22. **wg-s2s на relay ОБЯЗАТЕЛЬНО `Table = off` и `AllowedIPs = peer_ip/32`** — без Table=off wg-quick создаёт fwmark policy routing, ломает DNAT. AllowedIPs=/32 (не /30 и не 0.0.0.0/0)
 23. **AllowedIPs = 10.99.x.1/32 на relay** (конкретный peer), `0.0.0.0/0` — только на wg-s2s-up с `Table = off`
+24. **MTU при двойном туннелировании (OpenVPN inside WireGuard s2s):** tun-mtu должен быть 1340, не 1420. Расчёт: 1500 (ethernet) - 80 (WG s2s overhead) - 80 (second WG hop) = 1340. С tun-mtu 1420 большие пакеты (видео, файлы) фрагментируются/дропаются
 
 ## Key Weaknesses Found (Code Review)
 
