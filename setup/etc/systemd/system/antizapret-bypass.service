@@ -1,0 +1,12 @@
+[Unit]
+Description=AntiZapret Bypass Routing — update Russian site IPs
+After=network.target antizapret.service
+
+[Service]
+Type=oneshot
+ExecStart=/root/antizapret/bypass.sh update
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

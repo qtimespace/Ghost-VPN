@@ -1,0 +1,45 @@
+# Ghost-VPN Bypass Direct Routing
+# Трафик к этим доменам выходит с VPN1 (Россия, Timeweb),
+# а не через VPN3 (Германия).
+#
+# ВАЖНО: трафик к этим доменам НЕ анонимизируется VPN3.
+# Timeweb и российские провайдеры видят назначения.
+#
+# Формат: один домен на строку, комментарии с #
+
+# Маркетплейсы
+ozon.ru
+www.ozon.ru
+wildberries.ru
+www.wildberries.ru
+avito.ru
+www.avito.ru
+
+# Банки и финансы
+sberbank.ru
+www.sberbank.ru
+sbbol.ru
+tinkoff.ru
+www.tinkoff.ru
+raiffeisen.ru
+www.raiffeisen.ru
+vtb.ru
+www.vtb.ru
+alfabank.ru
+www.alfabank.ru
+
+# Госсервисы
+gosuslugi.ru
+www.gosuslugi.ru
+nalog.ru
+www.nalog.ru
+mos.ru
+www.mos.ru
+egov.ru
+
+# Стриминг
+rutube.ru
+www.rutube.ru
+ivi.ru
+www.ivi.ru
+okko.tv

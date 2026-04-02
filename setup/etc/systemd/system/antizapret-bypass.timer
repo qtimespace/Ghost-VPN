@@ -1,0 +1,10 @@
+[Unit]
+Description=AntiZapret Bypass Routing — periodic DNS refresh timer
+
+[Timer]
+OnBootSec=60
+OnUnitActiveSec=30min
+Unit=antizapret-bypass.service
+
+[Install]
+WantedBy=timers.target
