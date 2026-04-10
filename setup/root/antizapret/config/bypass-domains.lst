@@ -7,39 +7,336 @@
 #
 # Формат: один домен на строку, комментарии с #
 
-# Маркетплейсы
+# =========================================================
+# ГОССЕРВИСЫ (базовые)
+# =========================================================
+gosuslugi.ru
+www.gosuslugi.ru
+esia.gosuslugi.ru
+lk.gosuslugi.ru
+pos.gosuslugi.ru
+
+nalog.ru
+www.nalog.ru
+lkfl.nalog.ru
+lkul.nalog.ru
+
+mos.ru
+www.mos.ru
+pgu.mos.ru
+
+egov.ru
+
+# =========================================================
+# ФЕДЕРАЛЬНЫЕ ОРГАНЫ
+# =========================================================
+government.ru
+www.government.ru
+kremlin.ru
+www.kremlin.ru
+
+minfin.gov.ru
+economy.gov.ru
+digital.gov.ru
+edu.gov.ru
+minzdrav.gov.ru
+minpromtorg.gov.ru
+minjust.gov.ru
+mid.ru
+
+customs.gov.ru
+fns.gov.ru
+fssprus.ru
+pfr.gov.ru
+sfr.gov.ru
+rosstat.gov.ru
+
+rkn.gov.ru
+rospotrebnadzor.ru
+gibdd.ru
+
+xn--b1aew.xn--p1ai
+
+# =========================================================
+# СУДЫ
+# =========================================================
+sudrf.ru
+www.sudrf.ru
+vsrf.ru
+www.vsrf.ru
+ksrf.ru
+www.ksrf.ru
+arbitr.ru
+kad.arbitr.ru
+
+# =========================================================
+# ГОСДАННЫЕ / РЕЕСТРЫ
+# =========================================================
+zakupki.gov.ru
+bus.gov.ru
+data.gov.ru
+regulation.gov.ru
+reestr-zalogov.ru
+fedresurs.ru
+egrul.nalog.ru
+
+# =========================================================
+# БАНКИ
+# =========================================================
+sberbank.ru
+www.sberbank.ru
+online.sberbank.ru
+sbbol.ru
+
+vtb.ru
+online.vtb.ru
+
+tinkoff.ru
+www.tinkoff.ru
+securepay.tinkoff.ru
+
+alfabank.ru
+click.alfabank.ru
+
+gazprombank.ru
+gpbank.ru
+
+raiffeisen.ru
+
+rshb.ru
+
+domrf.ru
+
+psbank.ru
+
+# =========================================================
+# ПЛАТЕЖНЫЕ СИСТЕМЫ / ФИНТЕХ
+# =========================================================
+mironline.ru
+nspk.ru
+qiwi.com
+qiwi.ru
+yoomoney.ru
+money.yandex.ru
+
+cloudpayments.ru
+robokassa.ru
+unitpay.ru
+
+# =========================================================
+# МАРКЕТПЛЕЙСЫ
+# =========================================================
 ozon.ru
 www.ozon.ru
+api.ozon.ru
+
 wildberries.ru
 www.wildberries.ru
+
 avito.ru
 www.avito.ru
 
-# Банки и финансы
-sberbank.ru
-www.sberbank.ru
-sbbol.ru
-tinkoff.ru
-www.tinkoff.ru
-raiffeisen.ru
-www.raiffeisen.ru
-vtb.ru
-www.vtb.ru
-alfabank.ru
-www.alfabank.ru
+market.yandex.ru
+yandex.market
 
-# Госсервисы
-gosuslugi.ru
-www.gosuslugi.ru
-nalog.ru
-www.nalog.ru
-mos.ru
-www.mos.ru
-egov.ru
+sbermegamarket.ru
 
-# Стриминг
+aliexpress.ru
+
+kazanexpress.ru
+
+# =========================================================
+# ДОСТАВКА / ЛОГИСТИКА
+# =========================================================
+pochta.ru
+www.pochta.ru
+tracking.pochta.ru
+
+russianpost.ru
+
+cdek.ru
+www.cdek.ru
+api.cdek.ru
+
+dellin.ru
+
+pecom.ru
+
+boxberry.ru
+
+# =========================================================
+# ТРАНСПОРТ
+# =========================================================
+rzd.ru
+pass.rzd.ru
+
+aeroflot.ru
+
+pobeda.aero
+
+utair.ru
+
+s7.ru
+
+# =========================================================
+# ЖКХ / ЭНЕРГЕТИКА
+# =========================================================
+mosenergosbyt.ru
+lkk.mosenergosbyt.ru
+
+tns-e.ru
+
+mosoblgaz.ru
+
+petersburgregiongaz.ru
+
+interrao.ru
+
+tplusgroup.ru
+
+rosseti.ru
+
+lenenergo.ru
+
+bashesk.ru
+
+irkutskenergo.ru
+
+# =========================================================
+# ТЕЛЕКОМ
+# =========================================================
+mts.ru
+lk.mts.ru
+
+megafon.ru
+lk.megafon.ru
+
+beeline.ru
+
+tele2.ru
+
+rostelecom.ru
+
+domru.ru
+
+# =========================================================
+# IT / ЭКОСИСТЕМЫ
+# =========================================================
+yandex.ru
+www.yandex.ru
+passport.yandex.ru
+api.yandex.ru
+cloud.yandex.ru
+
+mail.ru
+e.mail.ru
+
+vk.com
+api.vk.com
+
+ok.ru
+
+rambler.ru
+
+# =========================================================
+# ОБЛАКА / CDN (КРИТИЧНО!)
+# =========================================================
+# Yandex Cloud
+yandexcloud.net
+storage.yandexcloud.net
+
+# VK Cloud
+mcs.mail.ru
+hb.bizmrg.com
+
+# Selectel
+selectel.ru
+selcdn.ru
+
+# Ростелеком CDN
+rtcdn.ru
+
+# CDN Video
+cdnvideo.ru
+
+# DDoS-Guard (очень важно!)
+ddos-guard.net
+ddos-guard.ru
+
+# StormWall
+stormwall.pro
+
+# =========================================================
+# API / AUTH / SERVICE INFRA
+# =========================================================
+oauth.yandex.ru
+login.yandex.ru
+
+id.vk.com
+
+auth.tinkoff.ru
+
+securepayments.sberbank.ru
+
+3ds.sberbank.ru
+
+acs.tinkoff.ru
+
+# =========================================================
+# ОБРАЗОВАНИЕ
+# =========================================================
+edu.ru
+minobrnauki.gov.ru
+
+uchi.ru
+
+foxford.ru
+
+openedu.ru
+
+# =========================================================
+# МЕДИЦИНА
+# =========================================================
+emias.info
+emias.mos.ru
+
+gosmed.ru
+
+# =========================================================
+# СТРИМИНГ / МЕДИА
+# =========================================================
 rutube.ru
-www.rutube.ru
+
 ivi.ru
-www.ivi.ru
+
 okko.tv
+
+more.tv
+
+wink.ru
+
+ntv.ru
+
+1tv.ru
+
+vgtrk.ru
+
+# =========================================================
+# КАРТЫ / ГЕО
+# =========================================================
+maps.yandex.ru
+api-maps.yandex.ru
+
+2gis.ru
+
+# =========================================================
+# ПРОЧЕЕ ВАЖНОЕ
+# =========================================================
+goszakaz.ru
+torgi.gov.ru
+
+nalog.gov.ru
+
+fsrar.ru
+
+fedsfm.ru
