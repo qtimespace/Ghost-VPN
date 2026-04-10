@@ -308,7 +308,7 @@ rm -rf /etc/openvpn/client/*
 rm -rf /etc/wireguard/templates/*
 
 # Удаляем скомпилированный патченный OpenVPN
-make -C /usr/local/src/openvpn uninstall
+make -C /usr/local/src/openvpn uninstall 2>/dev/null || true
 rm -rf /usr/local/src/openvpn
 
 # Отключим IPv6

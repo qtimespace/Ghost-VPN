@@ -35,7 +35,15 @@ __pycache__/
 .vscode/
 *.iml
 
+# neoreg (HTTP tunnel tools — contain secrets)
+neoreg_servers/
+
+# Experimental relay/tunnel scripts (hardcoded secrets, RCE risk)
+setup/www/*.php
+setup/www/relay-client.py
+
 # OS
 .DS_Store
 Thumbs.db
 desktop.ini
+

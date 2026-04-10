@@ -201,8 +201,17 @@ addWireGuard(){
 
 	CLIENT_BLOCK="$(sed -n "/^# Client = ${CLIENT_NAME}$/,/^AllowedIPs/ {p; /^AllowedIPs/q}" /etc/wireguard/antizapret.conf)"
 
+	# Keys stored in separate dir (not in server config) — security fix
+	local WG_KEYS_DIR="/root/antizapret/client/wireguard/keys"
+	mkdir -p "$WG_KEYS_DIR" && chmod 700 "$WG_KEYS_DIR"
+
 	if [[ -n "$CLIENT_BLOCK" ]]; then
-		CLIENT_PRIVATE_KEY="$(echo "$CLIENT_BLOCK" | grep '# PrivateKey =' | cut -d '=' -f 2- | sed 's/ //g')"
+		# Try key file first, fall back to legacy comment in server config
+		if [[ -f "${WG_KEYS_DIR}/${CLIENT_NAME}.key" ]]; then
+			CLIENT_PRIVATE_KEY="$(cat "${WG_KEYS_DIR}/${CLIENT_NAME}.key")"
+		else
+			CLIENT_PRIVATE_KEY="$(echo "$CLIENT_BLOCK" | grep '# PrivateKey =' | cut -d '=' -f 2- | sed 's/ //g')"
+		fi
 		CLIENT_PUBLIC_KEY="$(echo "$CLIENT_BLOCK" | grep 'PublicKey =' | cut -d '=' -f 2- | sed 's/ //g')"
 		CLIENT_PRESHARED_KEY="$(echo "$CLIENT_BLOCK" | grep 'PresharedKey =' | cut -d '=' -f 2- | sed 's/ //g')"
 		CLIENT_IP="$(echo "$CLIENT_BLOCK" | grep 'AllowedIPs =' | cut -d '=' -f 2- | sed 's/ //g' | cut -d '/' -f 1)"
@@ -211,10 +220,12 @@ addWireGuard(){
 		CLIENT_PRIVATE_KEY="$(wg genkey)"
 		CLIENT_PUBLIC_KEY="$(echo "${CLIENT_PRIVATE_KEY}" | wg pubkey)"
 		CLIENT_PRESHARED_KEY="$(wg genpsk)"
+		# Save private key to secure file
+		(umask 077; echo "$CLIENT_PRIVATE_KEY" > "${WG_KEYS_DIR}/${CLIENT_NAME}.key")
 		BASE_CLIENT_IP="$(grep "^Address" /etc/wireguard/antizapret.conf | sed 's/.*= *//' | cut -d'.' -f1-3 | head -n 1)"
 		for i in {2..255}; do
 			CLIENT_IP="${BASE_CLIENT_IP}.$i"
-			if ! grep -q "$CLIENT_IP" /etc/wireguard/antizapret.conf; then
+			if ! grep -qF "= ${CLIENT_IP}/" /etc/wireguard/antizapret.conf; then
 				break
 			fi
 			if [[ "$i" == 255 ]]; then
@@ -223,7 +234,6 @@ addWireGuard(){
 			fi
 		done
 		echo "# Client = ${CLIENT_NAME}
-# PrivateKey = ${CLIENT_PRIVATE_KEY}
 [Peer]
 PublicKey = ${CLIENT_PUBLIC_KEY}
 PresharedKey = ${CLIENT_PRESHARED_KEY}
@@ -238,7 +248,11 @@ AllowedIPs = ${CLIENT_IP}/32
 
 	CLIENT_BLOCK="$(sed -n "/^# Client = ${CLIENT_NAME}$/,/^AllowedIPs/ {p; /^AllowedIPs/q}" /etc/wireguard/vpn.conf)"
 	if [[ -n "$CLIENT_BLOCK" ]]; then
-		CLIENT_PRIVATE_KEY="$(echo "$CLIENT_BLOCK" | grep '# PrivateKey =' | cut -d '=' -f 2- | sed 's/ //g')"
+		if [[ -f "${WG_KEYS_DIR}/${CLIENT_NAME}.key" ]]; then
+			CLIENT_PRIVATE_KEY="$(cat "${WG_KEYS_DIR}/${CLIENT_NAME}.key")"
+		else
+			CLIENT_PRIVATE_KEY="$(echo "$CLIENT_BLOCK" | grep '# PrivateKey =' | cut -d '=' -f 2- | sed 's/ //g')"
+		fi
 		CLIENT_PUBLIC_KEY="$(echo "$CLIENT_BLOCK" | grep 'PublicKey =' | cut -d '=' -f 2- | sed 's/ //g')"
 		CLIENT_PRESHARED_KEY="$(echo "$CLIENT_BLOCK" | grep 'PresharedKey =' | cut -d '=' -f 2- | sed 's/ //g')"
 		CLIENT_IP="$(echo "$CLIENT_BLOCK" | grep 'AllowedIPs =' | cut -d '=' -f 2- | sed 's/ //g' | cut -d '/' -f 1)"
@@ -247,10 +261,11 @@ AllowedIPs = ${CLIENT_IP}/32
 		CLIENT_PRIVATE_KEY="$(wg genkey)"
 		CLIENT_PUBLIC_KEY="$(echo "${CLIENT_PRIVATE_KEY}" | wg pubkey)"
 		CLIENT_PRESHARED_KEY="$(wg genpsk)"
+		(umask 077; echo "$CLIENT_PRIVATE_KEY" > "${WG_KEYS_DIR}/${CLIENT_NAME}.key")
 		BASE_CLIENT_IP="$(grep "^Address" /etc/wireguard/vpn.conf | sed 's/.*= *//' | cut -d'.' -f1-3 | head -n 1)"
 		for i in {2..255}; do
 			CLIENT_IP="${BASE_CLIENT_IP}.$i"
-			if ! grep -q "$CLIENT_IP" /etc/wireguard/vpn.conf; then
+			if ! grep -qF "= ${CLIENT_IP}/" /etc/wireguard/vpn.conf; then
 				break
 			fi
 			if [[ "$i" == 255 ]]; then
@@ -259,7 +274,6 @@ AllowedIPs = ${CLIENT_IP}/32
 			fi
 		done
 		echo "# Client = ${CLIENT_NAME}
-# PrivateKey = ${CLIENT_PRIVATE_KEY}
 [Peer]
 PublicKey = ${CLIENT_PUBLIC_KEY}
 PresharedKey = ${CLIENT_PRESHARED_KEY}

@@ -3,6 +3,13 @@
 set -e
 shopt -s nullglob
 
+# Lock to prevent concurrent runs
+exec 9>/var/lock/antizapret-parse.lock
+if ! flock -n 9; then
+	echo "Another instance of parse.sh is already running"
+	exit 1
+fi
+
 # Обработка ошибок
 handle_error() {
 	echo "$(lsb_release -ds) $(uname -r) $(date --iso-8601=seconds)"

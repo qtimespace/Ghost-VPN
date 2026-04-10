@@ -5,7 +5,7 @@ After=network.target
 [Service]
 Type=simple
 # KEY is set during install-beszel.sh — Hub's SSH public key
-ExecStart=/opt/beszel/beszel-agent -k "${BESZEL_HUB_KEY}" -l :45876
+ExecStart=/opt/beszel/beszel-agent -k $BESZEL_HUB_KEY -l :45876
 EnvironmentFile=/etc/beszel-agent.env
 Restart=always
 RestartSec=5

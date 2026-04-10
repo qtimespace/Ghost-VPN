@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import subprocess,time,argparse,threading,copy,os
-from ipaddress import IPv4Network
+from ipaddress import IPv4Network,IPv4Address
 from dnslib import DNSRecord,RCODE,QTYPE,A
 from dnslib.server import DNSServer,DNSHandler,BaseResolver,DNSLogger,TCPServer
 
@@ -39,6 +39,12 @@ class ProxyResolver(BaseResolver):
         threading.Thread(target=self.cleanup_fake_ips_worker,daemon=True).start()
 
     def get_fake_ip(self,real_ip,current_time):
+        try:
+            addr = IPv4Address(real_ip)
+            if addr.is_private or addr.is_loopback or addr.is_reserved:
+                return None
+        except ValueError:
+            return None
         with self.lock:
             entry = self.ip_map.get(real_ip)
             if entry:
@@ -48,16 +54,13 @@ class ProxyResolver(BaseResolver):
                 print("Error: No fake IP left")
                 return None
             fake_ip = self.ip_pool.pop()
-            self.ip_map[real_ip] = {"fake_ip": fake_ip,"last_access": current_time}
-        try:
-            subprocess.run(["/usr/sbin/iptables","-w","-t","nat","-A","ANTIZAPRET-MAPPING","-d",fake_ip,"-j","DNAT","--to-destination",real_ip],stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,check=True,env=self._env)
-        except Exception as e:
-            print(f"Error: {e} (real_ip={real_ip} fake_ip={fake_ip})")
-            with self.lock:
-                del self.ip_map[real_ip]
+            try:
+                subprocess.run(["/usr/sbin/iptables","-w","-t","nat","-A","ANTIZAPRET-MAPPING","-d",fake_ip,"-j","DNAT","--to-destination",real_ip],stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,check=True,env=self._env)
+                self.ip_map[real_ip] = {"fake_ip": fake_ip,"last_access": current_time}
+            except Exception as e:
+                print(f"Error: {e} (real_ip={real_ip} fake_ip={fake_ip})")
                 self.ip_pool.add(fake_ip)
-            return None
-        #print(f"Mapping: {fake_ip} to {real_ip}")
+                return None
         return fake_ip
 
     def mapping_ip(self,real_ip,fake_ip,current_time):
@@ -194,5 +197,5 @@ if __name__ == "__main__":
                            handler=DNSHandler)
     tcp_server.start_thread()
     print("Started Proxy Resolver: %s:%d -> %s:%d" % (args.address or "*",args.port,args.dns,args.dns_port))
-    while udp_server.isAlive():
+    while udp_server.is_alive():
         time.sleep(1)

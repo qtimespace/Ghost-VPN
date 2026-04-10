@@ -9,6 +9,9 @@ cd /root/antizapret
 source setup
 
 if [[ -z "$DEFAULT_INTERFACE" ]]; then
+	DEFAULT_INTERFACE="$(ip route show default | grep -v wg | awk '/default/ {print $5}' | head -1)"
+fi
+if [[ -z "$DEFAULT_INTERFACE" ]]; then
 	DEFAULT_INTERFACE="$(ip route get 1.2.3.4 2>/dev/null | grep -oP 'dev \K\S+')"
 fi
 if [[ -z "$DEFAULT_INTERFACE" ]]; then
@@ -16,7 +19,7 @@ if [[ -z "$DEFAULT_INTERFACE" ]]; then
 	exit 1
 fi
 
-DEFAULT_IP="$(ip route get 1.2.3.4 2>/dev/null | grep -oP 'src \K\S+')"
+DEFAULT_IP="$(ip -4 addr show "$DEFAULT_INTERFACE" | grep -oP 'inet \K[0-9.]+' | head -1)"
 if [[ -z "$DEFAULT_IP" ]]; then
 	echo 'Default IPv4 address not found!'
 	exit 2

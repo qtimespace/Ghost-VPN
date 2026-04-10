@@ -29,9 +29,10 @@ RESET='\033[0m'
 # ── Константы ────────────────────────────────────────────────────────────────
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DEPLOY_KEY="/tmp/ghost_vpn_deploy_key_$$"
+DEPLOY_PID="$$"
+DEPLOY_KEY="/tmp/ghost_vpn_deploy_key_${DEPLOY_PID}"
 DEPLOY_KEY_PUB="${DEPLOY_KEY}.pub"
-KNOWN_HOSTS="/tmp/ghost_vpn_known_hosts_$$"
+KNOWN_HOSTS="/tmp/ghost_vpn_known_hosts_${DEPLOY_PID}"
 # STATE_FILE сохраняется между перезапусками (для resume при падении)
 STATE_FILE="${SCRIPT_DIR}/.deploy_state"
 REBOOT_TIMEOUT="${REBOOT_TIMEOUT:-600}"
@@ -586,7 +587,7 @@ setup_s2s_wireguard() {
     log_phase "Setting up WireGuard Site-to-Site tunnels"
 
     local s2s_port="${S2S_PORT:-51820}"
-    local s2s_mtu="${S2S_MTU:-1420}"
+    local s2s_mtu="${S2S_MTU:-1400}"
     local s2s_dir
     s2s_dir="$(umask 077; mktemp -d /tmp/ghost_vpn_s2s_XXXXXXXX)"
 
@@ -649,6 +650,7 @@ PrivateKey = $(cat "${s2s_dir}/relay2.key")
 Address = 10.99.1.1/30
 ListenPort = ${s2s_port}
 MTU = ${s2s_mtu}
+Table = off
 PostUp = ip link set dev %i txqueuelen 10000
 
 [Peer]
@@ -828,7 +830,7 @@ WGEOF
             "${RELAY2_USER:-root}@${RELAY2_HOST}" "
                 iptables -t nat -F PREROUTING
                 iptables -t nat -F POSTROUTING
-                DEF_IF=\$(ip route get 1.2.3.4 | grep -oP 'dev \K\S+')
+                DEF_IF=\$(ip route show default | grep -v wg | awk '/default/ {print \$5}' | head -1)
                 for port in 80 443 504 508 50080 50443; do
                     iptables -w -t nat -A PREROUTING -i \$DEF_IF -p tcp --dport \$port -j DNAT --to-destination 10.99.2.1:\$port
                     iptables -w -t nat -A PREROUTING -i \$DEF_IF -p udp --dport \$port -j DNAT --to-destination 10.99.2.1:\$port
@@ -847,7 +849,7 @@ WGEOF
             "${RELAY1_USER:-root}@${RELAY1_HOST}" "
                 iptables -t nat -F PREROUTING
                 iptables -t nat -F POSTROUTING
-                DEF_IF=\$(ip route get 1.2.3.4 | grep -oP 'dev \K\S+')
+                DEF_IF=\$(ip route show default | grep -v wg | awk '/default/ {print \$5}' | head -1)
                 for port in 80 443 504 508 50080 50443; do
                     iptables -w -t nat -A PREROUTING -i \$DEF_IF -p tcp --dport \$port -j DNAT --to-destination 10.99.1.1:\$port
                     iptables -w -t nat -A PREROUTING -i \$DEF_IF -p udp --dport \$port -j DNAT --to-destination 10.99.1.1:\$port
@@ -866,7 +868,7 @@ WGEOF
             "${RELAY1_USER:-root}@${RELAY1_HOST}" "
                 iptables -t nat -F PREROUTING
                 iptables -t nat -F POSTROUTING
-                DEF_IF=\$(ip route get 1.2.3.4 | grep -oP 'dev \K\S+')
+                DEF_IF=\$(ip route show default | grep -v wg | awk '/default/ {print \$5}' | head -1)
                 for port in 80 443 504 508 50080 50443; do
                     iptables -w -t nat -A PREROUTING -i \$DEF_IF -p tcp --dport \$port -j DNAT --to-destination 10.99.1.1:\$port
                     iptables -w -t nat -A PREROUTING -i \$DEF_IF -p udp --dport \$port -j DNAT --to-destination 10.99.1.1:\$port
@@ -1110,7 +1112,7 @@ main() {
                 -o UserKnownHostsFile="${KNOWN_HOSTS}" \
                 -o ConnectTimeout=10 -o BatchMode=yes \
                 -i "$DEPLOY_KEY" "${_u}@${_h}" \
-                "sed -i '/ghost-vpn-deploy-$$/d' ~/.ssh/authorized_keys 2>/dev/null" &>/dev/null && \
+                "sed -i '/ghost-vpn-deploy-${DEPLOY_PID}/d' ~/.ssh/authorized_keys 2>/dev/null" &>/dev/null && \
                 log_ok "Deploy key removed from ${_h}" || \
                 log_warn "Could not remove deploy key from ${_h} (manual cleanup may be needed)"
         done
