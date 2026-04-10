@@ -147,9 +147,9 @@ az_up() {
     # Очистить старые правила (цикл на случай накопленных дублей)
     for _ in 1 2 3; do
         safe iptables -w -t mangle -D PREROUTING \
-            -s $IP.28.0.0/15 -m comment --comment "az_default_russia" -j MARK --set-mark 0x3
+            -s $IP.29.0.0/16 -m comment --comment "az_default_russia" -j MARK --set-mark 0x3
         safe iptables -w -t mangle -D PREROUTING \
-            -s $IP.28.0.0/15 -m set --match-set "$AZ_SET" dst \
+            -s $IP.29.0.0/16 -m set --match-set "$AZ_SET" dst \
             -m comment --comment "az_blocked_germany" -j MARK --set-mark 0x0
     done
 
@@ -159,10 +159,12 @@ az_up() {
     # поэтому используем -A (append) чтобы сохранить правильный порядок:
     # 1) az_default_russia (mark 0x3 всем клиентам)
     # 2) az_blocked_germany (override mark 0x0 для antizapret IPs)
+    # Only mark antizapret clients (10.29.x.x), NOT full VPN clients (10.28.x.x)
+    # Full VPN clients use redirect-gateway → all traffic via eth0 (Germany) by default
     iptables -w -t mangle -A PREROUTING \
-        -s $IP.28.0.0/15 -m comment --comment "az_default_russia" -j MARK --set-mark 0x3
+        -s $IP.29.0.0/16 -m comment --comment "az_default_russia" -j MARK --set-mark 0x3
     iptables -w -t mangle -A PREROUTING \
-        -s $IP.28.0.0/15 -m set --match-set "$AZ_SET" dst \
+        -s $IP.29.0.0/16 -m set --match-set "$AZ_SET" dst \
         -m comment --comment "az_blocked_germany" -j MARK --set-mark 0x0
 
     # 6. FORWARD: разрешить клиентский трафик → wg-s2s
@@ -204,7 +206,13 @@ az_down() {
 
     [[ "$ALTERNATIVE_IP" == 'y' ]] && IP="${IP:-172}" || IP="${IP:-10}"
 
-    # mangle rules
+    # mangle rules — only antizapret clients (10.29.x.x), not full VPN (10.28.x.x)
+    # Also clean up legacy /15 rules from older versions
+    safe iptables -w -t mangle -D PREROUTING \
+        -s $IP.29.0.0/16 -m comment --comment "az_default_russia" -j MARK --set-mark 0x3
+    safe iptables -w -t mangle -D PREROUTING \
+        -s $IP.29.0.0/16 -m set --match-set "$AZ_SET" dst \
+        -m comment --comment "az_blocked_germany" -j MARK --set-mark 0x0
     safe iptables -w -t mangle -D PREROUTING \
         -s $IP.28.0.0/15 -m comment --comment "az_default_russia" -j MARK --set-mark 0x3
     safe iptables -w -t mangle -D PREROUTING \
