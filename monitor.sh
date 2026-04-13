@@ -284,8 +284,26 @@ collect_conntrack() {
 
     printf '"count":%d,"max":%d,"usage_pct":%d' "$count" "$max" "$usage_pct"
 
-    # Состояния из /proc/net/nf_conntrack (если есть, берём быстро через awk)
-    if [[ -f /proc/net/nf_conntrack ]]; then
+    # Состояния из conntrack (предпочитаем conntrack CLI, fallback на /proc)
+    if command -v conntrack &>/dev/null; then
+        local ct_dump
+        ct_dump="$(conntrack -L 2>/dev/null)"
+        if [[ -n "$ct_dump" ]]; then
+            local established syn_sent time_wait close_wait fin_wait
+            established="$(echo "$ct_dump" | grep -c 'ESTABLISHED' || echo 0)"
+            syn_sent="$(echo "$ct_dump" | grep -c 'SYN_SENT' || echo 0)"
+            time_wait="$(echo "$ct_dump" | grep -c 'TIME_WAIT' || echo 0)"
+            close_wait="$(echo "$ct_dump" | grep -c 'CLOSE_WAIT' || echo 0)"
+            fin_wait="$(echo "$ct_dump" | grep -c 'FIN_WAIT' || echo 0)"
+            printf ',"established":%d,"syn_sent":%d,"time_wait":%d,"close_wait":%d,"fin_wait":%d' \
+                "$established" "$syn_sent" "$time_wait" "$close_wait" "$fin_wait"
+
+            # VPN-specific conntrack entries (порты 50080/50443 — VPN relay traffic)
+            local vpn_entries
+            vpn_entries="$(echo "$ct_dump" | grep -cE 'dport=50080|dport=50443' || echo 0)"
+            printf ',"vpn_entries":%d' "$vpn_entries"
+        fi
+    elif [[ -f /proc/net/nf_conntrack ]]; then
         local established syn_sent time_wait close_wait fin_wait
         established="$(awk '/ESTABLISHED/ {c++} END {print c+0}' /proc/net/nf_conntrack 2>/dev/null)"
         syn_sent="$(awk '/SYN_SENT/ {c++} END {print c+0}' /proc/net/nf_conntrack 2>/dev/null)"
@@ -803,17 +821,27 @@ do_live() {
         local ct_pct=$(( ct_count * 100 / ct_max ))
         colorize_value "$ct_pct" "$THRESH_CONNTRACK_WARN" "$THRESH_CONNTRACK_CRIT"
         printf "  %d / %d (%d%%)${RESET}" "$ct_count" "$ct_max" "$ct_pct"
-        if [[ -f /proc/net/nf_conntrack ]]; then
+        if command -v conntrack &>/dev/null; then
+            local ct_dump
+            ct_dump="$(conntrack -L 2>/dev/null)"
+            if [[ -n "$ct_dump" ]]; then
+                local est syn tw vpn_ct
+                est="$(echo "$ct_dump" | grep -c 'ESTABLISHED' || echo 0)"
+                syn="$(echo "$ct_dump" | grep -c 'SYN_SENT' || echo 0)"
+                tw="$(echo "$ct_dump" | grep -c 'TIME_WAIT' || echo 0)"
+                vpn_ct="$(echo "$ct_dump" | grep -cE 'dport=50080|dport=50443' || echo 0)"
+                printf "  EST:%d SYN:%d TW:%d" "$est" "$syn" "$tw"
+                (( vpn_ct > 0 )) && echo -ne "  ${CYAN}VPN:%d${RESET}" "$vpn_ct"
+            fi
+            local drops
+            drops="$(conntrack -S 2>/dev/null | awk -F= '/drop=/ {s+=$2} END {print s+0}')"
+            (( drops > 0 )) && echo -ne "  ${RED}drops:${drops}${RESET}" || echo -ne "  ${GREEN}drops:0${RESET}"
+        elif [[ -f /proc/net/nf_conntrack ]]; then
             local est syn tw
             est="$(awk '/ESTABLISHED/ {c++} END {print c+0}' /proc/net/nf_conntrack 2>/dev/null)"
             syn="$(awk '/SYN_SENT/ {c++} END {print c+0}' /proc/net/nf_conntrack 2>/dev/null)"
             tw="$(awk '/TIME_WAIT/ {c++} END {print c+0}' /proc/net/nf_conntrack 2>/dev/null)"
             printf "  EST:%d SYN:%d TW:%d" "$est" "$syn" "$tw"
-        fi
-        if command -v conntrack &>/dev/null; then
-            local drops
-            drops="$(conntrack -S 2>/dev/null | awk -F= '/drop=/ {s+=$2} END {print s+0}')"
-            (( drops > 0 )) && echo -ne "  ${RED}drops:${drops}${RESET}" || echo -ne "  ${GREEN}drops:0${RESET}"
         fi
         echo ""
         echo ""

@@ -122,7 +122,7 @@ apt-get update
 dpkg --configure -a
 apt-get install --fix-broken -y
 apt-get dist-upgrade -y
-apt-get install -y iptables iptables-persistent irqbalance unattended-upgrades wireguard
+apt-get install -y iptables iptables-persistent irqbalance unattended-upgrades wireguard conntrack ethtool jq
 apt-get autoremove --purge -y
 apt-get clean
 dpkg-reconfigure -f noninteractive unattended-upgrades
@@ -223,6 +223,32 @@ if [[ -f "$S2S_CONF" ]]; then
 	echo "  Tunnel: ${LOCAL_TUNNEL_IP} → ${TUNNEL_DESTINATION_IP}"
 	DNAT_TARGET="$TUNNEL_DESTINATION_IP"
 	SNAT_SOURCE="$LOCAL_TUNNEL_IP"
+
+	# VPN2 transit routing: если есть wg-s2s-up, настраиваем пересылку
+	# VPN3 → wg-s2s-up → VPN2 → wg-s2s → VPN1 (Gotcha #33, #42)
+	if [[ -f "$S2S_UP_CONF" ]]; then
+		echo 'Setting up VPN2 transit routing (wg-s2s-up → wg-s2s)...'
+		local up_subnet
+		up_subnet="$(grep -oP 'Address\s*=\s*\K[0-9.]+/[0-9]+' "$S2S_UP_CONF" | head -1)"
+		up_subnet="${up_subnet%.*}.0/30"
+		# Skip local: ответные VPN-пакеты не маркировать (Gotcha #42)
+		iptables -w -t mangle -I PREROUTING 1 -i wg-s2s-up -d "$up_subnet" -j RETURN \
+			-m comment --comment "vpn2_skip_local"
+		# Transit mark: весь остальной трафик с wg-s2s-up → fwmark 0x4
+		iptables -w -t mangle -A PREROUTING -i wg-s2s-up -j MARK --set-mark 0x4 \
+			-m comment --comment "vpn2_transit"
+		# Policy routing: fwmark 0x4 → table 200 → default dev wg-s2s
+		ip rule add fwmark 0x4 lookup 200 priority 100 2>/dev/null || true
+		ip route add default dev wg-s2s table 200 2>/dev/null || true
+		# rp_filter off для WG tunnel interfaces
+		sysctl -qw net.ipv4.conf.wg-s2s.rp_filter=0
+		sysctl -qw net.ipv4.conf.wg-s2s-up.rp_filter=0
+		# FORWARD правила для transit
+		iptables -w -I FORWARD 1 -i wg-s2s-up -o wg-s2s -j ACCEPT \
+			-m comment --comment "vpn2_transit_fwd"
+		iptables -w -I FORWARD 2 -i wg-s2s -o wg-s2s-up -j ACCEPT \
+			-m comment --comment "vpn2_transit_ret"
+	fi
 else
 	echo 'No WireGuard s2s config found, using direct DNAT to public IP'
 	DNAT_TARGET="$DESTINATION_IP"

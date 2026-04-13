@@ -633,7 +633,7 @@ PrivateKey = $(cat "${s2s_dir}/main.key")
 Address = 10.99.2.1/30
 ListenPort = ${s2s_port}
 MTU = ${s2s_mtu}
-PostUp = ip link set dev %i txqueuelen 10000
+PostUp = ip link set dev %i txqueuelen 10000; ethtool -K %i tx-udp-segmentation off tx-gso-list off 2>/dev/null || true
 
 [Peer]
 # Relay2 upstream (${RELAY2_HOST})
@@ -668,7 +668,8 @@ PrivateKey = $(cat "${s2s_dir}/relay2up.key")
 Address = 10.99.2.2/30
 MTU = ${s2s_mtu}
 Table = off
-PostUp = ip link set dev %i txqueuelen 10000
+PostUp = ip link set dev %i txqueuelen 10000; iptables -t mangle -C PREROUTING -i %i -d 10.99.2.0/30 -j RETURN 2>/dev/null || iptables -t mangle -I PREROUTING 1 -i %i -d 10.99.2.0/30 -j RETURN -m comment --comment "vpn2_skip_local"; iptables -t mangle -C PREROUTING -i %i -j MARK --set-mark 0x4 2>/dev/null || iptables -t mangle -A PREROUTING -i %i -j MARK --set-mark 0x4 -m comment --comment "vpn2_transit"; ip rule add fwmark 0x4 lookup 200 priority 100 2>/dev/null || true; ip route add default dev wg-s2s table 200 2>/dev/null || true; sysctl -qw net.ipv4.conf.%i.rp_filter=0; iptables -C FORWARD -i %i -o wg-s2s -j ACCEPT 2>/dev/null || iptables -I FORWARD 1 -i %i -o wg-s2s -j ACCEPT -m comment --comment "vpn2_transit_fwd"; iptables -C FORWARD -i wg-s2s -o %i -j ACCEPT 2>/dev/null || iptables -I FORWARD 2 -i wg-s2s -o %i -j ACCEPT -m comment --comment "vpn2_transit_ret"
+PostDown = iptables -t mangle -D PREROUTING -i %i -d 10.99.2.0/30 -j RETURN -m comment --comment "vpn2_skip_local" 2>/dev/null || true; iptables -t mangle -D PREROUTING -i %i -j MARK --set-mark 0x4 -m comment --comment "vpn2_transit" 2>/dev/null || true; ip rule del fwmark 0x4 lookup 200 2>/dev/null || true; ip route del default dev wg-s2s table 200 2>/dev/null || true; iptables -D FORWARD -i %i -o wg-s2s -j ACCEPT -m comment --comment "vpn2_transit_fwd" 2>/dev/null || true; iptables -D FORWARD -i wg-s2s -o %i -j ACCEPT -m comment --comment "vpn2_transit_ret" 2>/dev/null || true
 
 [Peer]
 # Main VPN (${MAIN_HOST})
@@ -709,7 +710,7 @@ PrivateKey = $(cat "${s2s_dir}/main.key")
 Address = 10.99.1.1/30
 ListenPort = ${s2s_port}
 MTU = ${s2s_mtu}
-PostUp = ip link set dev %i txqueuelen 10000
+PostUp = ip link set dev %i txqueuelen 10000; ethtool -K %i tx-udp-segmentation off tx-gso-list off 2>/dev/null || true
 
 [Peer]
 # Relay1 (${RELAY1_HOST})
