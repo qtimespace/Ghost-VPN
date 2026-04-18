@@ -139,9 +139,15 @@ function download {
 	fi
 }
 
-download $UPDATE_PATH $UPDATE_LINK
-download $PARSE_PATH $PARSE_LINK
-download $DOALL_PATH $DOALL_LINK
+# Self-update отключён (security audit 2026-04-10 / CTO sprint 2026-04-19):
+# раньше update.sh/parse.sh/doall.sh перезаписывались с GitHub main без проверки подписи
+# или sha256 на каждом тике systemd-таймера — supply-chain вектор с root-исполнением.
+# Обновление скриптов теперь только через пересборку setup.sh (git clone в /tmp/antizapret).
+# Нужен опциональный self-update — добавлять SHA256-пиннинг или GPG verify.
+# Сохранено для справки:
+#   download $UPDATE_PATH $UPDATE_LINK
+#   download $PARSE_PATH $PARSE_LINK
+#   download $DOALL_PATH $DOALL_LINK
 
 source setup
 

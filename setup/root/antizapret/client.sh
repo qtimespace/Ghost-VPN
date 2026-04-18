@@ -96,6 +96,12 @@ initOpenVPN(){
 	EASYRSA_CRL_DAYS=3650 /usr/share/easy-rsa/easyrsa gen-crl
 	chmod 644 /etc/openvpn/easyrsa3/pki/crl.pem
 	cp /etc/openvpn/easyrsa3/pki/crl.pem /etc/openvpn/server/keys/crl.pem
+
+	# tls-crypt: DPI resistance + pre-auth TLS hardening (audit 2026-04-10)
+	if [[ ! -s /etc/openvpn/server/keys/tls-crypt.key ]]; then
+		(umask 077 && openvpn --genkey secret /etc/openvpn/server/keys/tls-crypt.key)
+		chmod 600 /etc/openvpn/server/keys/tls-crypt.key
+	fi
 }
 
 addOpenVPN(){
@@ -129,7 +135,8 @@ addOpenVPN(){
 	CA_CERT="$(grep -A 999 'BEGIN CERTIFICATE' -- "/etc/openvpn/server/keys/ca.crt")"
 	CLIENT_CERT="$(grep -A 999 'BEGIN CERTIFICATE' -- "/etc/openvpn/client/keys/$CLIENT_NAME.crt")"
 	CLIENT_KEY="$(cat -- "/etc/openvpn/client/keys/$CLIENT_NAME.key")"
-	if [[ ! "$CA_CERT" ]] || [[ ! "$CLIENT_CERT" ]] || [[ ! "$CLIENT_KEY" ]]; then
+	TLS_CRYPT_KEY="$(cat -- "/etc/openvpn/server/keys/tls-crypt.key")"
+	if [[ ! "$CA_CERT" ]] || [[ ! "$CLIENT_CERT" ]] || [[ ! "$CLIENT_KEY" ]] || [[ ! "$TLS_CRYPT_KEY" ]]; then
 		echo 'Cannot load client keys!'
 		exit 3
 	fi

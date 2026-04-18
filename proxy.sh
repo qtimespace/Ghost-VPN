@@ -146,7 +146,7 @@ net.ipv4.tcp_wmem=16384 131072 6291456
 net.ipv4.tcp_no_metrics_save=1
 net.core.netdev_budget=600
 net.ipv4.tcp_fastopen=1
-net.ipv4.ip_local_port_range=10000 50000
+net.ipv4.ip_local_port_range=32768 49999
 net.netfilter.nf_conntrack_max=131072
 net.core.netdev_budget_usecs=8000
 net.core.dev_weight=64
@@ -335,6 +335,19 @@ ip6tables -w -Z
 ip6tables -w -t nat -Z
 ip6tables -w -t mangle -Z
 ip6tables -w -t raw -Z
+
+# VPN1 bypass: MASQUERADE для трафика wg-s2s → eth0 (Gotcha #39)
+# Только на relay БЕЗ wg-s2s-up (VPN1, не VPN2)
+if [[ -f /etc/wireguard/wg-s2s.conf && ! -f /etc/wireguard/wg-s2s-up.conf ]]; then
+	if [[ -f /etc/systemd/system/bypass-vpn1.service && -x /root/antizapret/bypass-vpn1.sh ]]; then
+		echo 'Enabling bypass-vpn1.service (VPN1 MASQUERADE persistence)...'
+		systemctl daemon-reload
+		systemctl enable bypass-vpn1.service
+		systemctl start bypass-vpn1.service || true
+	else
+		echo 'WARNING: bypass-vpn1.service or bypass-vpn1.sh missing — skipping'
+	fi
+fi
 
 # Сохранение новых правил iptables
 netfilter-persistent save

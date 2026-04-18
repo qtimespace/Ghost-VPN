@@ -1,0 +1,15 @@
+[Unit]
+Description=VPN1 bypass MASQUERADE (wg-s2s -> physical interface)
+After=network-online.target wg-quick@wg-s2s.service
+Wants=network-online.target
+Requires=wg-quick@wg-s2s.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/root/antizapret/bypass-vpn1.sh
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
