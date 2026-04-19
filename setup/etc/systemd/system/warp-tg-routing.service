@@ -1,0 +1,9 @@
+[Unit]
+Description=WARP routing for Telegram CIDRs (check + self-heal)
+After=network-online.target wg-quick@wgcf.service
+
+[Service]
+Type=oneshot
+ExecStart=/root/antizapret/warp-tg-routing.sh check
+StandardOutput=journal
+StandardError=journal
