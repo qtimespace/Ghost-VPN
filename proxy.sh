@@ -122,7 +122,7 @@ apt-get update
 dpkg --configure -a
 apt-get install --fix-broken -y
 apt-get dist-upgrade -y
-apt-get install -y iptables iptables-persistent irqbalance unattended-upgrades wireguard conntrack ethtool jq
+apt-get install -y iptables iptables-persistent ipset irqbalance unattended-upgrades wireguard conntrack ethtool jq dnsutils
 apt-get autoremove --purge -y
 apt-get clean
 dpkg-reconfigure -f noninteractive unattended-upgrades
