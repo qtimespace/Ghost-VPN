@@ -1,0 +1,13 @@
+[Unit]
+Description=RU-Direct exit on VPN1 (refresh ipset + ensure rules)
+After=network-online.target wg-quick@wg-s2s.service
+Wants=network-online.target wg-quick@wg-s2s.service
+
+[Service]
+Type=oneshot
+ExecStart=/root/antizapret/ru-direct.sh refresh
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,47 @@
+# RU-Direct hosts — список ne-blocked в РФ доменов, для которых ru-direct.sh
+# на VPN1 делает direct exit eth0 (без отправки в VPN3). Цель: RTT к этим
+# хостам с клиента ≤80ms — проходит RKNHardering RTT triangulation.
+#
+# Один домен на строку. Комментарии — '#'. IPs резолвятся ru-direct.sh
+# каждые 30 минут.
+#
+# ПРАВИЛО: добавлять ТОЛЬКО заведомо ne-blocked в РФ домены. Если домен
+# окажется в antizapret_route — клиент потеряет доступ (VPN1 RU exit
+# не пробьёт российскую блокировку). См. ADR-003.
+
+# RKNHardering RTT triangulation targets (ОБЯЗАТЕЛЬНЫЕ)
+yandex.ru
+ya.ru
+mail.ru
+vk.com
+sberbank.ru
+gosuslugi.ru
+
+# Популярные RU-сервисы
+ok.ru
+rambler.ru
+avito.ru
+wildberries.ru
+ozon.ru
+cdek.ru
+
+# Госуслуги / налоговая
+nalog.ru
+mos.ru
+
+# Банки
+tinkoff.ru
+alfabank.ru
+vtb.ru
+
+# Телеком
+mts.ru
+beeline.ru
+megafon.ru
+tele2.ru
+rt.ru
+
+# Медиа
+rbc.ru
+lenta.ru
+ria.ru

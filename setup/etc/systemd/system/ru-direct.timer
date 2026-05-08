@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh RU-Direct ipset every 30 minutes
+
+[Timer]
+OnBootSec=45s
+OnUnitActiveSec=30min
+Unit=ru-direct.service
+
+[Install]
+WantedBy=timers.target

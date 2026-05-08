@@ -29,6 +29,8 @@ SUBNET=10.99.2.0/30
 
 apply_up() {
 	ip link set dev "$iface" txqueuelen 10000
+	# Gotcha #43: kernel 6.8+ UDP GSO breaks OpenVPN sendmsg through wg tunnel
+	ethtool -K "$iface" tx-udp-segmentation off tx-gso-list off 2>/dev/null || true
 
 	# Skip local: ответные VPN-пакеты не маркировать (Gotcha #42)
 	iptables -t mangle -C PREROUTING -i "$iface" -d "$SUBNET" -j RETURN \

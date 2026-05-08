@@ -560,16 +560,24 @@ install_relay() {
 
     log "Uploading relay artifacts to ${host}..."
     ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile="${KNOWN_HOSTS}" \
-        -o BatchMode=yes -i "$DEPLOY_KEY" "${user}@${host}" 'mkdir -p /root/antizapret' || true
+        -o BatchMode=yes -i "$DEPLOY_KEY" "${user}@${host}" 'mkdir -p /root/antizapret/config' || true
     scp_upload "${SCRIPT_DIR}/setup/root/antizapret/bypass-vpn1.sh" "$host" "$user" \
         "$DEPLOY_KEY" "key" "/root/antizapret/bypass-vpn1.sh"
     scp_upload "${SCRIPT_DIR}/setup/etc/systemd/system/bypass-vpn1.service" "$host" "$user" \
         "$DEPLOY_KEY" "key" "/etc/systemd/system/bypass-vpn1.service"
     scp_upload "${SCRIPT_DIR}/setup/root/antizapret/vpn2-transit.sh" "$host" "$user" \
         "$DEPLOY_KEY" "key" "/root/antizapret/vpn2-transit.sh"
+    scp_upload "${SCRIPT_DIR}/setup/root/antizapret/ru-direct.sh" "$host" "$user" \
+        "$DEPLOY_KEY" "key" "/root/antizapret/ru-direct.sh"
+    scp_upload "${SCRIPT_DIR}/setup/root/antizapret/config/ru-direct-hosts.txt" "$host" "$user" \
+        "$DEPLOY_KEY" "key" "/root/antizapret/config/ru-direct-hosts.txt"
+    scp_upload "${SCRIPT_DIR}/setup/etc/systemd/system/ru-direct.service" "$host" "$user" \
+        "$DEPLOY_KEY" "key" "/etc/systemd/system/ru-direct.service"
+    scp_upload "${SCRIPT_DIR}/setup/etc/systemd/system/ru-direct.timer" "$host" "$user" \
+        "$DEPLOY_KEY" "key" "/etc/systemd/system/ru-direct.timer"
     ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile="${KNOWN_HOSTS}" \
         -o BatchMode=yes -i "$DEPLOY_KEY" "${user}@${host}" \
-        'chmod +x /root/antizapret/bypass-vpn1.sh /root/antizapret/vpn2-transit.sh' || true
+        'chmod +x /root/antizapret/bypass-vpn1.sh /root/antizapret/vpn2-transit.sh /root/antizapret/ru-direct.sh' || true
 
     log "Running proxy.sh on ${host}..."
 
@@ -664,7 +672,7 @@ Address = 10.99.1.1/30
 ListenPort = ${s2s_port}
 MTU = ${s2s_mtu}
 Table = off
-PostUp = ip link set dev %i txqueuelen 10000
+PostUp = ip link set dev %i txqueuelen 10000; ethtool -K %i tx-udp-segmentation off tx-gso-list off 2>/dev/null || true
 
 [Peer]
 # Relay1 (${RELAY1_HOST})
@@ -701,7 +709,7 @@ PrivateKey = $(cat "${s2s_dir}/relay1.key")
 Address = 10.99.1.2/30
 MTU = ${s2s_mtu}
 Table = off
-PostUp = ip link set dev %i txqueuelen 10000
+PostUp = ip link set dev %i txqueuelen 10000; ethtool -K %i tx-udp-segmentation off tx-gso-list off 2>/dev/null || true
 
 [Peer]
 # Relay2 (${RELAY2_HOST})
@@ -740,7 +748,7 @@ PrivateKey = $(cat "${s2s_dir}/relay1.key")
 Address = 10.99.1.2/30
 MTU = ${s2s_mtu}
 Table = off
-PostUp = ip link set dev %i txqueuelen 10000
+PostUp = ip link set dev %i txqueuelen 10000; ethtool -K %i tx-udp-segmentation off tx-gso-list off 2>/dev/null || true
 
 [Peer]
 # Main VPN (${MAIN_HOST})

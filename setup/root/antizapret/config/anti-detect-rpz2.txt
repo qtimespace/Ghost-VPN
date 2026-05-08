@@ -1,0 +1,22 @@
+; Anti-detection RPZ для full VPN instance (kresd@2). Дублирует
+; anti-detect-rpz.txt чтобы блок работал и для 10.28/15 клиентов.
+
+api.ipapi.is CNAME .
+*.api.ipapi.is CNAME .
+ipapi.is CNAME .
+*.ipapi.is CNAME .
+iplocate.io CNAME .
+*.iplocate.io CNAME .
+ipapi.co CNAME .
+*.ipapi.co CNAME .
+ipinfo.io CNAME .
+*.ipinfo.io CNAME .
+ip-api.com CNAME .
+*.ip-api.com CNAME .
+ipify.org CNAME .
+*.ipify.org CNAME .
+api.ipify.org CNAME .
+ifconfig.me CNAME .
+*.ifconfig.me CNAME .
+icanhazip.com CNAME .
+*.icanhazip.com CNAME .

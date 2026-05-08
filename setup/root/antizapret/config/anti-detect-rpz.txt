@@ -1,0 +1,24 @@
+; Anti-detection RPZ — sinkholes для GeoIP-эндпоинтов, используемых
+; VPN-детекторами (RKNHardering и аналоги). Без GeoIP детектор не может
+; сравнить страну exit с MCC телефона → LocationSignalsChecker нейтрален.
+; См. ADR-003.
+
+api.ipapi.is CNAME .
+*.api.ipapi.is CNAME .
+ipapi.is CNAME .
+*.ipapi.is CNAME .
+iplocate.io CNAME .
+*.iplocate.io CNAME .
+ipapi.co CNAME .
+*.ipapi.co CNAME .
+ipinfo.io CNAME .
+*.ipinfo.io CNAME .
+ip-api.com CNAME .
+*.ip-api.com CNAME .
+ipify.org CNAME .
+*.ipify.org CNAME .
+api.ipify.org CNAME .
+ifconfig.me CNAME .
+*.ifconfig.me CNAME .
+icanhazip.com CNAME .
+*.icanhazip.com CNAME .

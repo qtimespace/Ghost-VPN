@@ -240,7 +240,7 @@ for dev in $(ls /sys/class/net); do
 	# Set new TX queue length
 	ip link set "$dev" txqueuelen 10000
 	# Disable packet segmentation
-	ethtool -K "$dev" tso off gso off gro off rx-udp-gro-forwarding off
+	ethtool -K "$dev" tso off gso off gro off rx-udp-gro-forwarding off tx-udp-segmentation off tx-gso-list off 2>/dev/null || true
 	[[ -e "/sys/class/net/$dev/device" ]] || continue
 	# Enable SoftIRQ CPU balance
 	echo "$CPU_MASK" | tee /sys/class/net/$dev/queues/rx-*/rps_cpus >/dev/null

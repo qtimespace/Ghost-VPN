@@ -347,6 +347,19 @@ if [[ -f /etc/wireguard/wg-s2s.conf && ! -f /etc/wireguard/wg-s2s-up.conf ]]; th
 	else
 		echo 'WARNING: bypass-vpn1.service or bypass-vpn1.sh missing — skipping'
 	fi
+
+	# RU-Direct exit на VPN1 — direct route к ne-blocked RU-сайтам
+	# для прохождения RKNHardering RTT triangulation (см. ADR-003)
+	if [[ -f /etc/systemd/system/ru-direct.service && -x /root/antizapret/ru-direct.sh ]]; then
+		echo 'Enabling ru-direct.timer (RU-Direct exit refresh every 30 min)...'
+		systemctl daemon-reload
+		systemctl enable ru-direct.timer
+		systemctl start ru-direct.timer || true
+		# Initial run — поднять правила сразу, не ждать первого срабатывания таймера
+		systemctl start ru-direct.service || true
+	else
+		echo 'WARNING: ru-direct.service or ru-direct.sh missing — skipping'
+	fi
 fi
 
 # Сохранение новых правил iptables
