@@ -49,6 +49,26 @@ iptables_del -w -D FORWARD -i wg-s2s -p tcp -m multiport --dports 80,443,504,508
 iptables_del -w -D FORWARD -i wg-s2s -p udp -m multiport --dports 80,443,504,508,540,580,50080,50443,51080,51443 -j ACCEPT
 
 # filter
+# INPUT default-deny cleanup — СНАЧАЛА вернуть политику в ACCEPT (fail-open при демонтаже),
+# затем снять whitelist-правила, чтобы они не накапливались дублями при следующем up.sh
+iptables_del -w -P INPUT ACCEPT
+ip6tables_del -w -P INPUT ACCEPT
+iptables_del -w -D INPUT -i lo -j ACCEPT
+iptables_del -w -D INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+iptables_del -w -D INPUT -p icmp -j ACCEPT
+iptables_del -w -D INPUT -p tcp -m multiport --dports 22,80,443,504,508,50080,50443 -j ACCEPT
+iptables_del -w -D INPUT -p udp -m multiport --dports 80,443,504,508,540,580,50080,50443,51080,51443,51820 -j ACCEPT
+iptables_del -w -D INPUT -i wg-s2s -p tcp --dport 45876 -j ACCEPT
+for wg_if in wg-s2s wg-s2s-up; do
+	wg_port="$(wg show "$wg_if" listen-port 2>/dev/null || true)"
+	[[ -n "$wg_port" && "$wg_port" != "0" ]] && \
+		iptables_del -w -D INPUT -p udp --dport "$wg_port" -j ACCEPT
+done
+ip6tables_del -w -D INPUT -i lo -j ACCEPT
+ip6tables_del -w -D INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+ip6tables_del -w -D INPUT -p ipv6-icmp -j ACCEPT
+ip6tables_del -w -D INPUT -p tcp -m multiport --dports 22,80,443,504,508,50080,50443 -j ACCEPT
+ip6tables_del -w -D INPUT -p udp -m multiport --dports 80,443,504,508,540,580,50080,50443,51080,51443,51820 -j ACCEPT
 # INPUT connection tracking
 iptables_del -w -D INPUT -m conntrack --ctstate INVALID -j DROP
 ip6tables_del -w -D INPUT -m conntrack --ctstate INVALID -j DROP

@@ -87,7 +87,21 @@ link_socket_write_udp(struct link_socket *sock,\
 		usleep(100000);\
 #endif\
 		int buffer_len = BLEN(buf);\
-		srand((unsigned)time(NULL));\
+		static int rng_seeded = 0;\
+		if (!rng_seeded) {\
+			unsigned int rng_seed;\
+			FILE *urandom_fp = fopen("/dev/urandom", "rb");\
+			if (urandom_fp) {\
+				if (fread(&rng_seed, sizeof(rng_seed), 1, urandom_fp) != 1) {\
+					rng_seed = (unsigned)time(NULL);\
+				}\
+				fclose(urandom_fp);\
+			} else {\
+				rng_seed = (unsigned)time(NULL);\
+			}\
+			srand(rng_seed);\
+			rng_seeded = 1;\
+		}\
 		for (int i = 0; i < 2; i++) {\
 			int data_len = rand() % 101 + buffer_len;\
 			uint8_t data[data_len];\

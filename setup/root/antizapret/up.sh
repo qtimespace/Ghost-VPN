@@ -234,6 +234,51 @@ if ip link show wg-s2s &>/dev/null; then
 	iptables -w -I FORWARD -i wg-s2s -p udp -m multiport --dports 80,443,504,508,540,580,50080,50443,51080,51443 -j ACCEPT
 fi
 
+# ── INPUT default-deny (hardening, всегда включено) ───────────────────────────
+# Запрещаем весь входящий трафик, кроме явно разрешённого. Раньше политика была
+# ACCEPT и защита держалась только на опциональных DROP-правилах (ATTACK_PROTECTION).
+#
+# Безопасность от самоблокировки:
+#   1) Все ACCEPT-правила добавляются ЗДЕСЬ, до смены политики.
+#   2) Смена `-P INPUT DROP` стоит ПОСЛЕДНЕЙ строкой блока — если выше по скрипту
+#      падение (set -e), политика остаётся ACCEPT (fail-open для управления).
+#   3) down.sh в начале сбрасывает политику обратно в ACCEPT.
+ALLOW_TCP_PORTS="22,80,443,504,508,50080,50443"
+ALLOW_UDP_PORTS="80,443,504,508,540,580,50080,50443,51080,51443,51820"
+
+# loopback и уже установленные/связанные соединения (вкл. текущую SSH-сессию)
+iptables -w -A INPUT -i lo -j ACCEPT
+iptables -w -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+# ICMP (ping / Path MTU Discovery)
+iptables -w -A INPUT -p icmp -j ACCEPT
+# SSH + публичные сервисные порты OpenVPN/WireGuard (incl. backup-порты до REDIRECT)
+iptables -w -A INPUT -p tcp -m multiport --dports "$ALLOW_TCP_PORTS" -j ACCEPT
+iptables -w -A INPUT -p udp -m multiport --dports "$ALLOW_UDP_PORTS" -j ACCEPT
+# WireGuard site-to-site: входящие зашифрованные пакеты на фактический ListenPort
+# (на случай нестандартного S2S_PORT, отличного от 51820)
+for wg_if in wg-s2s wg-s2s-up; do
+	if ip link show "$wg_if" &>/dev/null; then
+		wg_port="$(wg show "$wg_if" listen-port 2>/dev/null || true)"
+		[[ -n "$wg_port" && "$wg_port" != "0" ]] && \
+			iptables -w -A INPUT -p udp --dport "$wg_port" -j ACCEPT
+	fi
+done
+# beszel-agent (мониторинг) — доступен только через s2s туннель, не публично
+if ip link show wg-s2s &>/dev/null; then
+	iptables -w -A INPUT -i wg-s2s -p tcp --dport 45876 -j ACCEPT
+fi
+
+# IPv6: lo, established, ICMPv6 (обязателен для работы IPv6/ND), SSH и сервисные порты
+ip6tables -w -A INPUT -i lo -j ACCEPT
+ip6tables -w -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+ip6tables -w -A INPUT -p ipv6-icmp -j ACCEPT
+ip6tables -w -A INPUT -p tcp -m multiport --dports "$ALLOW_TCP_PORTS" -j ACCEPT
+ip6tables -w -A INPUT -p udp -m multiport --dports "$ALLOW_UDP_PORTS" -j ACCEPT
+
+# Смена политики INPUT на DROP — ПОСЛЕДНЕЕ действие фильтрации (fail-open при ошибке выше)
+iptables -w -P INPUT DROP
+ip6tables -w -P INPUT DROP
+
 # Network tuning
 CPU_MASK=$(printf '%x' $(( (1 << $(nproc)) - 1 )))
 for dev in $(ls /sys/class/net); do

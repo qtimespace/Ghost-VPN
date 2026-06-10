@@ -18,6 +18,11 @@ trap 'handle_error $LINENO "$BASH_COMMAND"' ERR
 
 export LC_ALL=C
 export EASYRSA_PKI=/etc/openvpn/easyrsa3/pki
+# Elliptic-curve PKI (secp384r1) — короче ключи, выше стойкость, чем RSA-2048.
+# Влияет только на ВНОВЬ создаваемые ключи/PKI; существующие сертификаты не трогаются.
+export EASYRSA_ALGO=ec
+export EASYRSA_CURVE=secp384r1
+export EASYRSA_DIGEST=sha384
 
 askClientName(){
 	if ! [[ "$CLIENT_NAME" =~ ^[a-zA-Z0-9_-]{1,32}$ ]]; then
@@ -34,7 +39,7 @@ askClientCertExpire(){
 		echo
 		echo 'Enter client certificate expiration days (1-3650):'
 		until [[ "$CLIENT_CERT_EXPIRE" =~ ^[0-9]+$ ]] && (( CLIENT_CERT_EXPIRE > 0 )) && (( CLIENT_CERT_EXPIRE <= 3650 )); do
-			read -rp 'Certificate expiration days: ' -e -i 3650 CLIENT_CERT_EXPIRE
+			read -rp 'Certificate expiration days: ' -e -i 365 CLIENT_CERT_EXPIRE
 		done
 	fi
 }

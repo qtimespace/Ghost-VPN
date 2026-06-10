@@ -7,6 +7,13 @@
 
 export LC_ALL=C
 
+# Фиксированная ревизия репозитория (защита от supply-chain RCE).
+# Деплой выполняет код из репозитория как root, поэтому версию пиним к коммиту:
+# git проверяет SHA объектов, и при подмене содержимого checkout упадёт.
+# Переопределяется через переменную окружения REPO_REF (тег или полный SHA коммита).
+REPO_URL="${REPO_URL:-https://github.com/qtimespace/Ghost-VPN.git}"
+REPO_REF="${REPO_REF:-7463a5d164b458f36acc8027f250cfc565bfb132}"
+
 # Проверка необходимости перезагрузить
 if [[ -f /var/run/reboot-required ]] || pidof apt apt-get dpkg unattended-upgrades >/dev/null 2>&1; then
 	echo 'Error: You need to reboot this server before installation!'
@@ -379,9 +386,14 @@ rm -rf /tmp/dnslib
 git clone https://github.com/paulc/dnslib.git /tmp/dnslib
 PIP_BREAK_SYSTEM_PACKAGES=1 python3 -m pip install --force-reinstall --user /tmp/dnslib
 
-# Клонируем репозиторий antizapret
+# Клонируем репозиторий antizapret на ЗАФИКСИРОВАННОЙ ревизии
 rm -rf /tmp/antizapret
-git clone https://github.com/qtimespace/Ghost-VPN.git /tmp/antizapret
+git clone "$REPO_URL" /tmp/antizapret
+git -C /tmp/antizapret checkout --quiet "$REPO_REF" || {
+	echo "Error: cannot checkout pinned repo ref '$REPO_REF' — возможна подмена репозитория или неверный REPO_REF"
+	exit 6
+}
+echo "Repo pinned at: $(git -C /tmp/antizapret rev-parse HEAD)"
 
 # Сохраняем пользовательские настройки и обработчики custom*.sh
 cp /root/antizapret/config/*.txt /tmp/antizapret/setup/root/antizapret/config/ || true
