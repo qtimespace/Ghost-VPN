@@ -172,8 +172,18 @@ WireGuard site-to-site туннели между relay и main серверам�
 
 ## Рекомендации по безопасности
 
-1. **Исправить `srand(time(NULL))`** в anti-DPI патче на `/dev/urandom`
-2. **Добавить `tls-crypt`** в конфигурацию OpenVPN (шифрует TLS-хендшейк)
-3. **Включить `port-share`** для OpenVPN TCP + nginx (защита от active probing)
-4. Использовать **разные UUID/ключи** для каждого клиента VLESS
-5. Регулярно ротировать целевой домен Reality (shortIds позволяют это)
+Выполнено (security sprint 2026-06):
+
+- ✅ **`srand(time(NULL))` → `/dev/urandom`** в anti-DPI патче (однократный seed, fallback на time)
+- ✅ **`tls-crypt`** добавлен в конфигурацию OpenVPN (шифрует TLS-хендшейк, защита от active probing)
+- ✅ **EC PKI** (secp384r1/sha384) для новых ключей вместо RSA-2048
+- ✅ **Срок клиентских сертификатов** по умолчанию 365 дней (был 3650)
+- ✅ **INPUT default-deny** (всегда включён) + скрипт `firewall-safe-apply.sh` с авто-откатом
+- ✅ **Пиннинг репозитория** (`REPO_REF`) в `setup.sh` — защита от supply-chain RCE
+
+Осталось / на будущее:
+
+1. **Включить `port-share`** для OpenVPN TCP + nginx (дополнительная защита от active probing)
+2. Использовать **разные UUID/ключи** для каждого клиента VLESS
+3. Регулярно ротировать целевой домен Reality (shortIds позволяют это)
+4. Рассмотреть отключение `duplicate-cn` и пиннинг стороннего `dnslib` в `setup.sh`
