@@ -12,7 +12,7 @@ export LC_ALL=C
 # git проверяет SHA объектов, и при подмене содержимого checkout упадёт.
 # Переопределяется через переменную окружения REPO_REF (тег или полный SHA коммита).
 REPO_URL="${REPO_URL:-https://github.com/qtimespace/Ghost-VPN.git}"
-REPO_REF="${REPO_REF:-95ca62ecd5d7083e301d1617eb3c9e7fb627bcaf}"
+REPO_REF="${REPO_REF:-239c69b3ea2db8ad15ca58d18cbb8cff0f5f81c3}"
 
 # Проверка необходимости перезагрузить
 if [[ -f /var/run/reboot-required ]] || pidof apt apt-get dpkg unattended-upgrades >/dev/null 2>&1; then
